@@ -1,9 +1,11 @@
+import os
 from analyzer.FileAnalyzer import *
 from drawer.RelationDrawer import *
 from drawer.DrawerHelper import *
 from AppSetting import *
 from model.PolicyEntities import *
 from logic.FilterResult import *
+from PythonUtilityClasses import SystemUtility as SU
 
 
 class AnalyzerLogic:
@@ -16,16 +18,24 @@ class AnalyzerLogic:
         self.keep_result = False
         self.list_of_diagrams = []
         self.ref_policy_file = PolicyFile()
+        # Persist collected policy files across runs when keep_result is enabled
+        self.collected_policy_files = []
         self.drawer = RelationDrawer()
 
     def init_analyzer(self):
         self.analyzer = FileAnalyzer()
 
     def analyze_all(self, included_paths, excluded_paths):
+        # Analyze new inputs
+        analyzed = self.analyzer.analyze(included_paths, excluded_paths) or []
+
+        # Respect keep_result flag by accumulating results across runs
         if self.keep_result:
-            policy_files.extend(self.analyzer.analyze(included_paths, excluded_paths))
+            self.collected_policy_files.extend(analyzed)
+            policy_files = self.collected_policy_files
         else:
-            policy_files = self.analyzer.analyze(included_paths, excluded_paths)
+            self.collected_policy_files = analyzed
+            policy_files = self.collected_policy_files
         self.update_statusbar("Analyze finished")
         self.ref_policy_file = self.make_ref_policy_file(policy_files)
         self.on_analyze_finished(None)
@@ -82,8 +92,9 @@ class AnalyzerLogic:
                             new_rule.target = new_rule.target.replace(
                                 "$" + str(i + 1), macro_call.parameters[i]
                             )
+                            # Fix off-by-one: replace $1, $2, ... in class_type as well
                             new_rule.class_type = new_rule.class_type.replace(
-                                "$" + str(i), macro_call.parameters[i]
+                                "$" + str(i + 1), macro_call.parameters[i]
                             )
                         # print("macro_call.parameters: ", macro_call.parameters)
                         # print("rule: ", new_rule)
@@ -93,23 +104,23 @@ class AnalyzerLogic:
         return lst_rules
 
     def clear_output(self):
-        files = SystemUtility().get_list_of_files(os.getcwd() + "/" + OUT_DIR, "*")
+        files = SU.SystemUtility().get_list_of_files(os.getcwd() + "/" + OUT_DIR, "*")
         for file in files:
             if os.path.isfile(file):
-                SystemUtility().delete_files(file)
+                SU.SystemUtility().delete_files(file)
         self.on_analyze_finished(None)
 
     def clear_file_from_analyzer(self, file_path):
         self.analyzer.clear()
-        SystemUtility().delete_files(generate_diagram_file_name(file_path))
-        SystemUtility().delete_files(generate_puml_file_name(file_path))
+        SU.SystemUtility().delete_files(generate_diagram_file_name(file_path))
+        SU.SystemUtility().delete_files(generate_puml_file_name(file_path))
         self.on_analyze_finished(None)
 
     def remove_file(self, file_path):
-        SystemUtility().delete_files(
+        SU.SystemUtility().delete_files(
             os.path.splitext(file_path)[0] + DIAGRAM_FILE_EXTENSION
         )
-        SystemUtility().delete_files(os.path.splitext(file_path)[0] + ".puml")
+        SU.SystemUtility().delete_files(os.path.splitext(file_path)[0] + ".puml")
 
     def clear(self):
         self.ref_policy_file = PolicyFile()
@@ -129,7 +140,7 @@ class AnalyzerLogic:
         self.update_analyzer_output_data = _update_analyzer_output_data
 
     def on_analyze_finished(self, filtered_policy_file):
-        self.list_of_diagrams = SystemUtility().get_list_of_files(
+        self.list_of_diagrams = SU.SystemUtility().get_list_of_files(
             os.getcwd() + "/" + OUT_DIR, "*" + DIAGRAM_FILE_EXTENSION
         )
         self.update_generated_diagram_list(self.list_of_diagrams)

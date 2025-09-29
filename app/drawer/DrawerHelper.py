@@ -1,4 +1,6 @@
 import os
+import shutil
+from AppSetting import OUT_DIR
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import List
@@ -14,12 +16,40 @@ def generate_diagram_file_name(file_name):
     return file_name.replace("/", "-") + "" + DIAGRAM_FILE_EXTENSION
 
 
+def _resolve_plantuml_jar():
+    # Try relative to app/ directory
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidate = os.path.join(os.path.dirname(here), "plantuml", "plantuml.jar")
+    if os.path.isfile(candidate):
+        return candidate
+    # Also try CWD/out configured locations as a fallback
+    alt = os.path.join(os.getcwd(), "app", "plantuml", "plantuml.jar")
+    if os.path.isfile(alt):
+        return alt
+    return None
+
+
 def generate_png(filepath):
-    os.system("java -jar plantuml/plantuml.jar " + filepath)
+    jar = _resolve_plantuml_jar()
+    if jar is None:
+        # Graceful fallback: keep .puml only
+        print("PlantUML jar not found; skipped PNG rendering for:", filepath)
+        return
+    if shutil.which("java") is None:
+        print("Java not found; skipped PNG rendering for:", filepath)
+        return
+    os.system(f"java -jar \"{jar}\" \"{filepath}\"")
 
 
 def generate_svg(filepath):
-    os.system("java -jar plantuml/plantuml.jar -tsvg " + filepath)
+    jar = _resolve_plantuml_jar()
+    if jar is None:
+        print("PlantUML jar not found; skipped SVG rendering for:", filepath)
+        return
+    if shutil.which("java") is None:
+        print("Java not found; skipped SVG rendering for:", filepath)
+        return
+    os.system(f"java -jar \"{jar}\" -tsvg \"{filepath}\"")
 
 
 @dataclass

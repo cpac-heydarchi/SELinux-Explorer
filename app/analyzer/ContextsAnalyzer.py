@@ -62,10 +62,14 @@ class ContextsAnalyzer(AbstractAnalyzer):
                 context.security_context = SecurityContext()
                 # print(security_items)
                 context.where_is_it = self.policy_file.where_is_it
-                context.security_context.user = security_items[0]
-                context.security_context.role = security_items[1]
-                context.security_context.type = security_items[2]
-                context.security_context.level = security_items[3]
+                if len(security_items) >= 1:
+                    context.security_context.user = security_items[0]
+                if len(security_items) >= 2:
+                    context.security_context.role = security_items[1]
+                if len(security_items) >= 3:
+                    context.security_context.type = security_items[2]
+                if len(security_items) >= 4:
+                    context.security_context.level = security_items[3]
 
                 context.domain_name = context.security_context.type
                 if len(security_items) > 4:
