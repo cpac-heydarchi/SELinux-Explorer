@@ -47,9 +47,9 @@ The tool supports the following file types:
 
 ## Dependencies
 
-To run SELinux Explorer, you need to have Python 3.x and some other packages installed on your local machine:
+To run SELinux Explorer, you need to have Python 3.12 and some other packages installed on your local machine:
 
-- Python 3.8 or newer
+- Python 3.12 or newer
 - PythonIsPython3
 - Graphviz
 - PyQt5
