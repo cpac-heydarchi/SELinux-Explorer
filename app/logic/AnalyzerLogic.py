@@ -5,6 +5,7 @@ from drawer.DrawerHelper import *
 from AppSetting import *
 from model.PolicyEntities import *
 from logic.FilterResult import *
+from logic.PolicyRepository import PolicyRepository
 from PythonUtilityClasses import SystemUtility as SU
 
 
@@ -21,6 +22,7 @@ class AnalyzerLogic:
         # Persist collected policy files across runs when keep_result is enabled
         self.collected_policy_files = []
         self.drawer = RelationDrawer()
+        self.repository = PolicyRepository()
 
     def init_analyzer(self):
         self.analyzer = FileAnalyzer()
@@ -46,62 +48,15 @@ class AnalyzerLogic:
         if policy_files is None or len(policy_files) == 0:
             return None
 
-        ref_policy_file = PolicyFile()
-        for policy_file in policy_files:
-            ref_policy_file.type_def.extend(policy_file.type_def)
-            ref_policy_file.attribute.extend(policy_file.attribute)
-            ref_policy_file.contexts.extend(policy_file.contexts)
-            ref_policy_file.se_apps.extend(policy_file.se_apps)
-            ref_policy_file.rules.extend(policy_file.rules)
-            ref_policy_file.macros.extend(policy_file.macros)
-            ref_policy_file.macro_calls.extend(policy_file.macro_calls)
-
-        ref_policy_file.rules.extend(
-            self.convert_macrocall_to_rule(
-                ref_policy_file.macro_calls, ref_policy_file.macros
-            )
-        )
-
+        # Build reference policy using repository operations
+        ref_policy_file = self.repository.merge(policy_files)
+        ref_policy_file = self.repository.expand_macros(ref_policy_file)
+        ref_policy_file = self.repository.dedup(ref_policy_file)
         return ref_policy_file
 
+    # Backward-compatibility wrapper for existing callers/tests
     def convert_macrocall_to_rule(self, macro_calls, macros):
-        lst_rules = []
-
-        for macro_call in macro_calls:
-            # print("macroCall.name: ", macro_call.name)
-            for macro in macros:
-                # print("macro.name: ", macro.name)
-                if macro.name == macro_call.name:
-                    # print("macro.name: ", macro.name)
-                    rules = macro.rules
-                    for rule in rules:
-                        """Need to replace $number in source, target or
-                        class_type with parameter from macro call with
-                         the same number"""
-                        new_rule = Rule(
-                            rule=rule.rule,
-                            source=rule.source,
-                            target=rule.target,
-                            class_type=rule.class_type,
-                            permissions=rule.permissions,
-                        )
-                        for i in range(0, len(macro_call.parameters)):
-                            new_rule.source = new_rule.source.replace(
-                                "$" + str(i + 1), macro_call.parameters[i]
-                            )
-                            new_rule.target = new_rule.target.replace(
-                                "$" + str(i + 1), macro_call.parameters[i]
-                            )
-                            # Fix off-by-one: replace $1, $2, ... in class_type as well
-                            new_rule.class_type = new_rule.class_type.replace(
-                                "$" + str(i + 1), macro_call.parameters[i]
-                            )
-                        # print("macro_call.parameters: ", macro_call.parameters)
-                        # print("rule: ", new_rule)
-                        lst_rules.append(new_rule)
-                    break
-
-        return lst_rules
+        return self.repository._macro_calls_to_rules(macro_calls, macros)
 
     def clear_output(self):
         files = SU.SystemUtility().get_list_of_files(os.getcwd() + "/" + OUT_DIR, "*")

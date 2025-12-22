@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 from AppSetting import OUT_DIR
 from enum import Enum
 from dataclasses import dataclass, field
@@ -38,7 +39,17 @@ def generate_png(filepath):
     if shutil.which("java") is None:
         print("Java not found; skipped PNG rendering for:", filepath)
         return
-    os.system(f"java -jar \"{jar}\" \"{filepath}\"")
+    try:
+        # Pass arguments as a list to avoid shell injection and let subprocess handle quoting
+        result = subprocess.run(["java", "-jar", jar, filepath], capture_output=True, text=True)
+    except FileNotFoundError:
+        # Shouldn't happen because shutil.which was checked, but handle defensively
+        print("Java executable not found; skipped PNG rendering for:", filepath)
+        return
+    if result.returncode != 0:
+        print("PlantUML failed to render PNG for:", filepath, "exit:", result.returncode)
+        if result.stderr:
+            print(result.stderr)
 
 
 def generate_svg(filepath):
@@ -49,7 +60,15 @@ def generate_svg(filepath):
     if shutil.which("java") is None:
         print("Java not found; skipped SVG rendering for:", filepath)
         return
-    os.system(f"java -jar \"{jar}\" -tsvg \"{filepath}\"")
+    try:
+        result = subprocess.run(["java", "-jar", jar, "-tsvg", filepath], capture_output=True, text=True)
+    except FileNotFoundError:
+        print("Java executable not found; skipped SVG rendering for:", filepath)
+        return
+    if result.returncode != 0:
+        print("PlantUML failed to render SVG for:", filepath, "exit:", result.returncode)
+        if result.stderr:
+            print(result.stderr)
 
 
 @dataclass
