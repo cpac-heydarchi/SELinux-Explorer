@@ -3,7 +3,7 @@ name: Spell Check
 on: [push, pull_request]
 
 jobs:
-  spell_check:
+  CodeCheck:
     runs-on: ubuntu-latest
     steps:
     - name: Check out repository
