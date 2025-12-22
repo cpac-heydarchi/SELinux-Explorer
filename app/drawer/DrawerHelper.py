@@ -41,13 +41,17 @@ def generate_png(filepath):
         return
     try:
         # Pass arguments as a list to avoid shell injection and let subprocess handle quoting
-        result = subprocess.run(["java", "-jar", jar, filepath], capture_output=True, text=True)
+        result = subprocess.run(
+            ["java", "-jar", jar, filepath], capture_output=True, text=True
+        )
     except FileNotFoundError:
         # Shouldn't happen because shutil.which was checked, but handle defensively
         print("Java executable not found; skipped PNG rendering for:", filepath)
         return
     if result.returncode != 0:
-        print("PlantUML failed to render PNG for:", filepath, "exit:", result.returncode)
+        print(
+            "PlantUML failed to render PNG for:", filepath, "exit:", result.returncode
+        )
         if result.stderr:
             print(result.stderr)
 
@@ -61,12 +65,16 @@ def generate_svg(filepath):
         print("Java not found; skipped SVG rendering for:", filepath)
         return
     try:
-        result = subprocess.run(["java", "-jar", jar, "-tsvg", filepath], capture_output=True, text=True)
+        result = subprocess.run(
+            ["java", "-jar", jar, "-tsvg", filepath], capture_output=True, text=True
+        )
     except FileNotFoundError:
         print("Java executable not found; skipped SVG rendering for:", filepath)
         return
     if result.returncode != 0:
-        print("PlantUML failed to render SVG for:", filepath, "exit:", result.returncode)
+        print(
+            "PlantUML failed to render SVG for:", filepath, "exit:", result.returncode
+        )
         if result.stderr:
             print(result.stderr)
 

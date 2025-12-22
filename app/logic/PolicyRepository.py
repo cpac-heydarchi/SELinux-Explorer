@@ -66,9 +66,7 @@ class PolicyRepository:
             return PolicyFile()
         # Unique by keys
         policy.type_def = list({item.name: item for item in policy.type_def}.values())
-        policy.attribute = list(
-            {item.name: item for item in policy.attribute}.values()
-        )
+        policy.attribute = list({item.name: item for item in policy.attribute}.values())
         policy.contexts = list(
             {item.path_name: item for item in policy.contexts}.values()
         )

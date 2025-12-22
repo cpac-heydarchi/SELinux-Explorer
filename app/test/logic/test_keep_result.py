@@ -30,12 +30,17 @@ def _pf(name):
 def test_keep_result_true_accumulates():
     logic = AnalyzerLogic()
     _wire_noop_ui(logic)
-    logic.analyzer = StubAnalyzer([[ _pf("a") ], [ _pf("b") ]])
+    logic.analyzer = StubAnalyzer([[_pf("a")], [_pf("b")]])
     logic.set_keep_result(True)
 
     logic.analyze_all([], [])
     assert logic.ref_policy_file is not None
-    assert any(td for td in [*logic.ref_policy_file.type_def, *logic.ref_policy_file.rules]) or True
+    assert (
+        any(
+            td for td in [*logic.ref_policy_file.type_def, *logic.ref_policy_file.rules]
+        )
+        or True
+    )
 
     logic.analyze_all([], [])
     assert logic.ref_policy_file is not None
@@ -45,7 +50,7 @@ def test_keep_result_true_accumulates():
 def test_keep_result_false_overwrites():
     logic = AnalyzerLogic()
     _wire_noop_ui(logic)
-    logic.analyzer = StubAnalyzer([[ _pf("a") ], [ _pf("b") ]])
+    logic.analyzer = StubAnalyzer([[_pf("a")], [_pf("b")]])
     logic.set_keep_result(False)
 
     logic.analyze_all([], [])

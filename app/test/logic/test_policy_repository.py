@@ -1,4 +1,11 @@
-from model.PolicyEntities import PolicyFile, PolicyMacro, PolicyMacroCall, Rule, RuleEnum, TypeDef
+from model.PolicyEntities import (
+    PolicyFile,
+    PolicyMacro,
+    PolicyMacroCall,
+    Rule,
+    RuleEnum,
+    TypeDef,
+)
 from logic.PolicyRepository import PolicyRepository
 
 
@@ -27,21 +34,36 @@ def test_expand_macros_creates_rules():
     repo = PolicyRepository()
     m = PolicyMacro()
     m.name = "allow3"
-    r = Rule(rule=RuleEnum.ALLOW, source="$1", target="$2", class_type="$3", permissions=["read"]) 
+    r = Rule(
+        rule=RuleEnum.ALLOW,
+        source="$1",
+        target="$2",
+        class_type="$3",
+        permissions=["read"],
+    )
     m.rules.append(r)
 
     call = PolicyMacroCall(name="allow3", parameters=["s", "t", "file"])
     pf = _pf(macros=[m], calls=[call])
 
     out = repo.expand_macros(pf)
-    assert any(rr.source == "s" and rr.target == "t" and rr.class_type == "file" for rr in out.rules)
+    assert any(
+        rr.source == "s" and rr.target == "t" and rr.class_type == "file"
+        for rr in out.rules
+    )
 
 
 def test_dedup_removes_duplicates():
     repo = PolicyRepository()
     t1 = TypeDef(name="a")
     t2 = TypeDef(name="a")
-    dup_rule = Rule(rule=RuleEnum.ALLOW, source="s", target="t", class_type="c", permissions=["x","y"]) 
+    dup_rule = Rule(
+        rule=RuleEnum.ALLOW,
+        source="s",
+        target="t",
+        class_type="c",
+        permissions=["x", "y"],
+    )
     pf = _pf(types=[t1, t2], rules=[dup_rule, dup_rule])
 
     out = repo.dedup(pf)

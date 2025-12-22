@@ -1,5 +1,11 @@
 import pytest
-from model.PolicyEntities import Rule, PolicyMacro, PolicyMacroCall, RuleEnum, PolicyFile
+from model.PolicyEntities import (
+    Rule,
+    PolicyMacro,
+    PolicyMacroCall,
+    RuleEnum,
+    PolicyFile,
+)
 from logic.AnalyzerLogic import AnalyzerLogic
 
 
