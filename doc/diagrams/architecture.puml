@@ -1,0 +1,78 @@
+@startuml Architecture
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+package "UI (PyQt5)" {
+  [MainWindow]
+}
+
+package "Logic" {
+  [AnalyzerLogic]
+  [FilterResult]
+}
+
+package "Analyzers" {
+  [FileAnalyzer]
+  [TeAnalyzer]
+  [SeAppAnalyzer]
+  [ContextsAnalyzer]
+}
+
+package "Model" {
+  [PolicyFile]
+  [Rule]
+  [TypeDef]
+  [Attribute]
+  [Context]
+  [SeAppContext]
+  [PolicyMacro]
+  [PolicyMacroCall]
+  [Permissive]
+  [TypeAlias]
+}
+
+package "Drawing" {
+  [RelationDrawer]
+  [AdvancedDrawer]
+  [DrawerHelper]
+}
+
+package "Utilities" {
+  [SystemUtility]
+  [FileReader]
+  [FileWriter]
+  [MyLogger]
+}
+
+package "Config" {
+  [AppSetting]
+}
+
+MainWindow --> AnalyzerLogic : user actions
+AnalyzerLogic --> FileAnalyzer : analyze_all(paths)
+FileAnalyzer --> TeAnalyzer : for *.te
+FileAnalyzer --> SeAppAnalyzer : for seapp_contexts
+FileAnalyzer --> ContextsAnalyzer : for *contexts
+TeAnalyzer --> PolicyFile : parse
+SeAppAnalyzer --> PolicyFile : parse
+ContextsAnalyzer --> PolicyFile : parse
+AnalyzerLogic --> PolicyFile : make_ref_policy_file()\nconvert_macrocall_to_rule()
+AnalyzerLogic --> RelationDrawer : draw_uml()
+AnalyzerLogic --> AdvancedDrawer : draw_uml()
+RelationDrawer ..> DrawerHelper : generate_png()
+AdvancedDrawer ..> DrawerHelper : generate_png()
+
+DrawerHelper ..> "plantuml.jar" : java -jar
+
+FilterResult --> PolicyFile : produce filtered view
+MainWindow --> FilterResult : apply filters
+
+AppSetting -[hidden]-> MainWindow
+Utilities ..> Analyzers
+Utilities ..> Logic
+
+note right of DrawerHelper
+Outputs PNG/SVG into OUT_DIR
+end note
+
+@enduml

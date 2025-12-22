@@ -1,0 +1,51 @@
+@startuml DataFlow
+hide empty members
+skinparam arrowThickness 1
+skinparam monochrome true
+
+actor User
+
+rectangle UI {
+  component MainWindow
+}
+
+rectangle Logic {
+  component AnalyzerLogic
+  component FilterResult
+}
+
+rectangle Analyzers {
+  component FileAnalyzer
+  component TeAnalyzer
+  component SeAppAnalyzer
+  component ContextsAnalyzer
+}
+
+rectangle Model {
+  component PolicyFile
+}
+
+rectangle Drawing {
+  component RelationDrawer
+  component AdvancedDrawer
+}
+
+User --> MainWindow : choose paths, filter
+MainWindow --> AnalyzerLogic : analyze_all(paths)
+AnalyzerLogic --> FileAnalyzer : analyze(target, exclude)
+FileAnalyzer --> TeAnalyzer : parse *.te
+FileAnalyzer --> SeAppAnalyzer : parse seapp_contexts
+FileAnalyzer --> ContextsAnalyzer : parse *_contexts
+TeAnalyzer --> PolicyFile : append types/attributes/rules/macros
+SeAppAnalyzer --> PolicyFile : append se_apps
+ContextsAnalyzer --> PolicyFile : append contexts
+AnalyzerLogic --> PolicyFile : merge to ref_policy_file
+AnalyzerLogic --> RelationDrawer : draw_uml(ref_policy_file)
+AnalyzerLogic --> AdvancedDrawer : draw_uml(ref_policy_file)
+
+MainWindow --> FilterResult : get_info_of_item/filter()
+FilterResult --> PolicyFile : produce filtered_policy_file
+FilterResult --> RelationDrawer : draw_uml(filtered)
+FilterResult --> AdvancedDrawer : draw_uml(filtered)
+
+@enduml

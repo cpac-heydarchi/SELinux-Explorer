@@ -1,4 +1,7 @@
 import os
+import shutil
+import subprocess
+from AppSetting import OUT_DIR
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import List
@@ -14,12 +17,66 @@ def generate_diagram_file_name(file_name):
     return file_name.replace("/", "-") + "" + DIAGRAM_FILE_EXTENSION
 
 
+def _resolve_plantuml_jar():
+    # Try relative to app/ directory
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidate = os.path.join(os.path.dirname(here), "plantuml", "plantuml.jar")
+    if os.path.isfile(candidate):
+        return candidate
+    # Also try CWD/out configured locations as a fallback
+    alt = os.path.join(os.getcwd(), "app", "plantuml", "plantuml.jar")
+    if os.path.isfile(alt):
+        return alt
+    return None
+
+
 def generate_png(filepath):
-    os.system("java -jar plantuml/plantuml.jar " + filepath)
+    jar = _resolve_plantuml_jar()
+    if jar is None:
+        # Graceful fallback: keep .puml only
+        print("PlantUML jar not found; skipped PNG rendering for:", filepath)
+        return
+    if shutil.which("java") is None:
+        print("Java not found; skipped PNG rendering for:", filepath)
+        return
+    try:
+        # Pass arguments as a list to avoid shell injection and let subprocess handle quoting
+        result = subprocess.run(
+            ["java", "-jar", jar, filepath], capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        # Shouldn't happen because shutil.which was checked, but handle defensively
+        print("Java executable not found; skipped PNG rendering for:", filepath)
+        return
+    if result.returncode != 0:
+        print(
+            "PlantUML failed to render PNG for:", filepath, "exit:", result.returncode
+        )
+        if result.stderr:
+            print(result.stderr)
 
 
 def generate_svg(filepath):
-    os.system("java -jar plantuml/plantuml.jar -tsvg " + filepath)
+    jar = _resolve_plantuml_jar()
+    if jar is None:
+        print("PlantUML jar not found; skipped SVG rendering for:", filepath)
+        return
+    if shutil.which("java") is None:
+        print("Java not found; skipped SVG rendering for:", filepath)
+        return
+    try:
+        result = subprocess.run(
+            ["java", "-jar", jar, "-tsvg", filepath], capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        print("Java executable not found; skipped SVG rendering for:", filepath)
+        return
+    if result.returncode != 0:
+        print(
+            "PlantUML failed to render SVG for:", filepath, "exit:", result.returncode
+        )
+        if result.stderr:
+            print(result.stderr)
 
 
 @dataclass

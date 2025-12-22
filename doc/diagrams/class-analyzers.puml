@@ -1,0 +1,71 @@
+@startuml AnalyzersClassDiagram
+skinparam classAttributeIconSize 0
+
+class AbstractAnalyzer {
+  +analyze(...)
+}
+
+class FileAnalyzer {
+  -list_of_policy_files: List[PolicyFile]
+  -list_of_analyzer_info: List[AnalyzerInfo]
+  +clear()
+  +analyze(target_paths, excluded_paths)
+  -gather_file_info(target_path, pattern)
+  -detect_lang(file_name) : FileTypeEnum
+  -invoke_analyzer_class(file_type, file_path) : PolicyFile
+}
+
+class TeAnalyzer {
+  -policy_file: PolicyFile
+  +analyze(file_path)
+  -extract_items_to_process(lines)
+  -process_line(line)
+  -extract_type_alias(s)
+  -extract_permissive(s)
+  -extract_definition(s) : TypeDef
+  -merge_exec_domain(type_def)
+  -extract_attribute(s) : Attribute
+  -extract_rule(s) : List[Rule]
+  -extract_macro(s) : PolicyMacro
+  -extract_macro_call(s) : PolicyMacroCall
+}
+
+class SeAppAnalyzer {
+  -policy_file: PolicyFile
+  +analyze(file_path)
+  -process_line(s)
+  -extract_definition(s) : SeAppContext
+}
+
+class ContextsAnalyzer {
+  -policy_file: PolicyFile
+  +analyze(file_path)
+  -extract_definition(s) : Context
+}
+
+class AnalyzerLogic {
+  -keep_result: bool
+  -list_of_diagrams: List[str]
+  -ref_policy_file: PolicyFile
+  -drawer: RelationDrawer
+  -analyzer: FileAnalyzer
+  +analyze_all(included, excluded)
+  -make_ref_policy_file(policy_files) : PolicyFile
+  -convert_macrocall_to_rule(macro_calls, macros) : List[Rule]
+}
+
+AbstractAnalyzer <|-- FileAnalyzer
+AbstractAnalyzer <|-- TeAnalyzer
+AbstractAnalyzer <|-- SeAppAnalyzer
+AbstractAnalyzer <|-- ContextsAnalyzer
+
+FileAnalyzer --> TeAnalyzer
+FileAnalyzer --> SeAppAnalyzer
+FileAnalyzer --> ContextsAnalyzer
+FileAnalyzer --> PolicyFile
+
+AnalyzerLogic --> FileAnalyzer
+AnalyzerLogic --> RelationDrawer
+AnalyzerLogic --> AdvancedDrawer
+
+@enduml

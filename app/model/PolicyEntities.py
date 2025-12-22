@@ -278,7 +278,7 @@ class PolicyMacro:
 @dataclass
 class PolicyMacroCall:
     name: str = ""
-    params: List[str] = field(default_factory=list)
+    parameters: List[str] = field(default_factory=list)
     where_is_it: str = ""
 
 

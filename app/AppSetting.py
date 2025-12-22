@@ -1,8 +1,9 @@
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import List
 from PythonUtilityClasses.SystemUtility import *
 from dataclass_wizard import JSONWizard
-from PythonUtilityClasses.FileWriter import *
+from PythonUtilityClasses.FileWriter import FileWriter
+import os
 
 ICON_PATH = "./ui/icons/"
 APP_VERSION = "0.3.5-beta"
