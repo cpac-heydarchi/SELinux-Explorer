@@ -3,17 +3,17 @@
 
 ### Missing SELinux Syntax
 
-- [ ] `type_transition src tgt:class new_type [obj_name];` — not parsed; add model field and parse in `TeAnalyzer.process_line`
-- [ ] `type_change` and `type_member` rules — not parsed
+- [x] `type_transition src tgt:class new_type [obj_name];` — parsed; stored in `PolicyFile.type_transitions` (`TypeTransition` model); `type_change` and `type_member` handled by the same code path
+- [x] `type_change` and `type_member` rules — parsed (see `type_transition` entry above)
 - [ ] `role` declarations, `role_allow`, `role_transition` — not parsed
 - [ ] `range_transition` — not parsed
 - [ ] `constrain` / `mlsconstrain` — not parsed
 - [ ] `class` and `common` declarations — not parsed; foreign class names appear as unresolved strings
 - [ ] `bool` declarations and `if`/`else`/`endif` conditional policy blocks — not parsed; conditional rules are silently dropped
-- [ ] M4 preprocessor conditionals (`ifdef`, `ifndef`, `else`, `endif`) — not handled in `extract_items_to_process`; lines inside false-branch blocks are still fed to the parser
+- [x] M4 preprocessor conditionals (`ifdef`, `ifndef`, `else`, `endif`) — `ifdef`/`ifndef` bodies extracted and parsed; `else` branch rules included for best-effort static analysis
 - [ ] `allowxperm` — currently in `NotSupportedRuleEnum` (silently skipped); add at least model-level storage so entries are not lost
-- [ ] `require { type …; }` blocks inside `.te` files — not parsed; foreign-type references appear as unresolved strings
-- [ ] Negative sets in brace groups (`allow { domain1 -domain2 } …`) — the `-` prefix is not recognized; negated types are treated as regular type names
+- [x] `require { type …; }` blocks inside `.te` files — silently skipped with brace-depth tracking; no parse errors
+- [x] Negative sets in brace groups (`allow { domain1 -domain2 } …`) — negated type names (starting with `-`) are now filtered from sources and targets lists after bracket expansion
 - [ ] `genfs_contexts`, `port_contexts` — stub methods (`pass`) in `ContextsAnalyzer`; implement or remove stubs
 - [ ] CIL (`.cil`) files used in Android 10+ — no parser or `FileTypeEnum` entry
 
@@ -84,11 +84,11 @@
 - [ ] Expand the test suite to cover more edge cases and improve overall code coverage
 - [ ] Add tests for `ContextsAnalyzer` with file-type flag entries (`-c`, `-d`, `-l`, etc.)
 - [ ] Add tests for `SeAppAnalyzer` (no test file exists today)
-- [ ] Add end-to-end integration tests that run `FileAnalyzer` over the sample files in `app/test/samples/`
-- [ ] Add tests for `typealias` extraction (`extract_type_alias`)
-- [ ] Add tests for `type_transition` once parsing is implemented
-- [ ] Add tests for negated sets in brace groups
-- [ ] Add tests for multi-class rules (`allow src tgt:{cls1 cls2} perm;`)
+- [x] Add end-to-end integration tests that run `FileAnalyzer` over the sample files in `app/test/samples/` — done (`test_sample_files_integration.py`)
+- [x] Add tests for `typealias` extraction (`extract_type_alias`) — covered by existing `TeAnalyzer_test.py`
+- [x] Add tests for multi-class rules (`allow src tgt:{cls1 cls2} perm;`) — done (`test_parsing_correctness.py`, `test_sample_files_integration.py`)
+- [x] Add tests for negated sets in brace groups — done (`test_missing_syntax.py`)
+- [x] Add tests for `type_transition` once parsing is implemented — done (`test_missing_syntax.py`)
 
 
 

@@ -21,6 +21,7 @@ class PolicyRepository:
             out.macro_calls.extend(pf.macro_calls)
             out.permissives.extend(pf.permissives)
             out.type_aliases.extend(pf.type_aliases)
+            out.type_transitions.extend(pf.type_transitions)
         return out
 
     def expand_macros(self, policy: PolicyFile) -> PolicyFile:

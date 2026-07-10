@@ -284,6 +284,19 @@ class PolicyMacroCall:
     where_is_it: str = ""
 
 
+# type_transition / type_change / type_member
+# syntax: rule_type source target:class default_type [object_name];
+@dataclass
+class TypeTransition(JSONWizard):
+    rule_type: str = ""  # "type_transition", "type_change", or "type_member"
+    source: str = ""
+    target: str = ""
+    class_type: str = ""
+    default_type: str = ""
+    object_name: str = ""  # optional; only valid for type_transition
+    where_is_it: str = ""
+
+
 @dataclass
 class PolicyFile(JSONWizard):
     where_is_it: str = ""
@@ -299,6 +312,7 @@ class PolicyFile(JSONWizard):
     macro_calls: List[PolicyMacroCall] = field(default_factory=list)
     permissives: List[Permissive] = field(default_factory=list)
     type_aliases: List[TypeAlias] = field(default_factory=list)
+    type_transitions: List[TypeTransition] = field(default_factory=list)
 
 
 @dataclass

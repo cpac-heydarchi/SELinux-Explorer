@@ -36,11 +36,27 @@ class TeAnalyzer(AbstractAnalyzer):
         define_macro_found = False
         macro_call_found = False
         multi_line = False
+        require_block_depth = 0  # tracks depth of require { … } blocks to skip
         for line in file_lines:
             line = clean_line(line)
             if line is None:
                 continue
 
+            # ── require { … } blocks: skip entirely ──────────────────────
+            if require_block_depth > 0:
+                require_block_depth += line.count("{") - line.count("}")
+                if require_block_depth < 0:
+                    require_block_depth = 0
+                continue
+
+            tokens = line.split()
+            if tokens and tokens[0] == "require" and "{" in line:
+                require_block_depth = line.count("{") - line.count("}")
+                if require_block_depth < 0:
+                    require_block_depth = 0
+                continue
+
+            # ── existing state machine ────────────────────────────────────
             if define_macro_found:
                 if ")" in line and (tmp_lst_lines.count("(") + line.count("(")) == (
                     tmp_lst_lines.count(")") + line.count(")")
@@ -55,8 +71,25 @@ class TeAnalyzer(AbstractAnalyzer):
                     tmp_lst_lines.count(")") + line.count(")")
                 ):
                     macro_call_found = False
-                    lst_lines.append(tmp_lst_lines + "\n " + line)
+                    assembled = tmp_lst_lines + "\n " + line
                     tmp_lst_lines = ""
+                    # ifdef/ifndef: extract body lines so inner rules are parsed.
+                    # first_token may be "ifdef(`FEATURE'," so use startswith.
+                    first_token = assembled.split()[0] if assembled.split() else ""
+                    if first_token.startswith(("ifdef", "ifndef")):
+                        for body_line in assembled.splitlines()[1:]:
+                            body_line = body_line.strip()
+                            # skip M4 closing/separator markers like '), ', `
+                            if not body_line or body_line.startswith("'"):
+                                continue
+                            if (
+                                ";" in body_line
+                                and body_line.count("(") == body_line.count(")")
+                                and body_line.count("{") == body_line.count("}")
+                            ):
+                                lst_lines.append(body_line)
+                    else:
+                        lst_lines.append(assembled)
                 else:
                     tmp_lst_lines = tmp_lst_lines + "\n " + line
             elif multi_line:
@@ -133,6 +166,10 @@ class TeAnalyzer(AbstractAnalyzer):
                 type_alias = self.extract_type_alias(input_string)
                 if type_alias is not None:
                     self.policy_file.type_aliases.append(type_alias)
+            elif items[0] in ["type_transition", "type_change", "type_member"]:
+                tt = self.extract_type_transition(input_string)
+                if tt is not None:
+                    self.policy_file.type_transitions.append(tt)
             elif "define" in input_string:
                 macro = self.extract_macro(input_string)
                 if macro is not None:
@@ -157,6 +194,37 @@ class TeAnalyzer(AbstractAnalyzer):
             type_alias.name = items[1].strip()
             type_alias.alias = items[3].strip()
             return type_alias
+        except Exception as err:
+            MyLogger.log_error(sys, err, input_string)
+            return None
+
+    def extract_type_transition(self, input_string):
+        """Parse type_transition / type_change / type_member rules.
+
+        Syntax: rule_type source target:class default_type ["object_name"];
+        """
+        try:
+            s = (
+                input_string.replace(" : ", ":")
+                .replace(" :", ":")
+                .replace(": ", ":")
+                .replace(";", "")
+                .strip()
+            )
+            items = s.split()
+            tt = TypeTransition()
+            tt.rule_type = items[0]
+            tt.source = items[1]
+            colon_pos = items[2].find(":")
+            if colon_pos < 0:
+                return None
+            tt.target = items[2][:colon_pos]
+            tt.class_type = items[2][colon_pos + 1 :]
+            tt.default_type = items[3]
+            if len(items) > 4:
+                tt.object_name = items[4].strip('"')
+            tt.where_is_it = self.policy_file.where_is_it
+            return tt
         except Exception as err:
             MyLogger.log_error(sys, err, input_string)
             return None
@@ -289,6 +357,13 @@ class TeAnalyzer(AbstractAnalyzer):
                         if "###" not in target_token
                         else lst_bracket_items.pop(0).strip().split()
                     )
+
+                    # Filter negated types (e.g. "-domain" from { domain -domain2 })
+                    sources = [s for s in sources if not s.startswith("-")]
+                    targets = [t for t in targets if not t.startswith("-")]
+                    if not sources or not targets:
+                        break
+
                     classes = (
                         [class_token]
                         if "###" not in class_token
