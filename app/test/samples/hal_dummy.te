@@ -14,3 +14,9 @@ allow priv_app dummy:binder { call transfer };
 neverallow system_app dummy:binder { call transfer };
 #neverallow { appdomain -gmscore_app } checkin_data_file:dir *;
 #neverallow { appdomain -gmscore_app } checkin_data_file:file *;
+
+# Multi-source + multi-class rule – exercises both bracket expansions together
+allow { system_app priv_app } hal_dummy_hwservice:{ hwservice_manager service_manager } find;
+
+# Multi-class neverallow
+neverallow untrusted_app hal_dummy_hwservice:{ hwservice_manager binder } { call add };

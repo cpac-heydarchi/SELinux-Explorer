@@ -54,6 +54,7 @@ class Permissive(JSONWizard):
     where_is_it: str = ""
 
 
+@dataclass
 class TypeAlias(JSONWizard):
     name: str = ""
     alias: str = ""
@@ -188,6 +189,7 @@ class SeAppContext(JSONWizard):
     domain: str = ""
     type: str = ""
     level_from: str = ""
+    level: str = ""
     type_def: TypeDef = field(default_factory=TypeDef)
     attribute: Attribute = field(default_factory=Attribute)
     is_permissive: bool = False
@@ -287,6 +289,7 @@ class PolicyFile(JSONWizard):
     where_is_it: str = ""
     description: str = ""
     file_type: FileTypeEnum = FileTypeEnum.UNDEFINED
+    file_name: str = ""
     type_def: List[TypeDef] = field(default_factory=list)
     attribute: List[Attribute] = field(default_factory=list)
     contexts: List[Context] = field(default_factory=list)

@@ -86,6 +86,25 @@ class TeAnalyzer(AbstractAnalyzer):
                     multi_line = True
                     tmp_lst_lines = line
 
+        # If an unclosed define/macro-call block was still open at end-of-file,
+        # attempt to salvage any self-contained statements embedded inside it.
+        if tmp_lst_lines:
+            MyLogger.log_error(
+                None,
+                "Unclosed block in " + getattr(self, "file_path", "?"),
+                tmp_lst_lines[:120],
+            )
+            for salvage_line in tmp_lst_lines.splitlines():
+                salvage_line = salvage_line.strip()
+                if not salvage_line or "define" in salvage_line:
+                    continue
+                if (
+                    ";" in salvage_line
+                    and salvage_line.count("(") == salvage_line.count(")")
+                    and salvage_line.count("{") == salvage_line.count("}")
+                ):
+                    lst_lines.append(salvage_line)
+
         # print("lst_lines: ", "\n-----------------\n".join(lst_lines))
         return lst_lines
 
@@ -257,29 +276,41 @@ class TeAnalyzer(AbstractAnalyzer):
                         else lst_bracket_items.pop(0).strip().split()
                     )
 
-                    sec_context = (
-                        items[2]
-                        if "###" not in items[2]
-                        else (lst_bracket_items.pop(0) + ":" + items[2].split(":")[1])
+                    # Split target:class – each side may be a "###" placeholder
+                    # for a brace group, supporting multi-target AND multi-class rules.
+                    colon_pos = items[2].find(":")
+                    if colon_pos < 0:
+                        break  # malformed rule, no target:class separator
+                    target_token = items[2][:colon_pos]
+                    class_token = items[2][colon_pos + 1:]
+
+                    targets = (
+                        [target_token]
+                        if "###" not in target_token
+                        else lst_bracket_items.pop(0).strip().split()
+                    )
+                    classes = (
+                        [class_token]
+                        if "###" not in class_token
+                        else lst_bracket_items.pop(0).strip().split()
                     )
 
                     permissions = (
                         [items[3]]
-                        if "###" not in items[3] != "###"
+                        if "###" not in items[3]
                         else lst_bracket_items.pop(0).strip().split()
                     )
                     for source in sources:
-                        dst_items = sec_context.split(":")
-                        targets = dst_items[0].split()
                         for target in targets:
-                            rule = Rule()
-                            rule.where_is_it = self.policy_file.where_is_it
-                            rule.rule = rule_enum
-                            rule.source = source
-                            rule.target = target
-                            rule.class_type = dst_items[1]
-                            rule.permissions = permissions
-                            lst_rules.append(rule)
+                            for cls in classes:
+                                rule = Rule()
+                                rule.where_is_it = self.policy_file.where_is_it
+                                rule.rule = rule_enum.value
+                                rule.source = source
+                                rule.target = target
+                                rule.class_type = cls
+                                rule.permissions = permissions
+                                lst_rules.append(rule)
 
         except Exception as err:
             MyLogger.log_error(sys, err, input_string)

@@ -57,23 +57,31 @@ class ContextsAnalyzer(AbstractAnalyzer):
             items = input_string.replace(";", "").strip().split()
             context.path_name = items[0]
             if len(items) > 1:
-                context.type_def = TypeDef()
-                security_items = items[1].split(":")
-                context.security_context = SecurityContext()
-                # print(security_items)
-                context.where_is_it = self.policy_file.where_is_it
-                if len(security_items) >= 1:
-                    context.security_context.user = security_items[0]
-                if len(security_items) >= 2:
-                    context.security_context.role = security_items[1]
-                if len(security_items) >= 3:
-                    context.security_context.type = security_items[2]
-                if len(security_items) >= 4:
-                    context.security_context.level = security_items[3]
+                # Optional file-type specifier: -f -d -l -c -b -s -p
+                _FILE_TYPE_FLAGS = {"-f", "-d", "-l", "-c", "-b", "-s", "-p"}
+                sec_idx = 1
+                if items[1] in _FILE_TYPE_FLAGS:
+                    context.file_type = items[1]
+                    sec_idx = 2
 
-                context.domain_name = context.security_context.type
-                if len(security_items) > 4:
-                    context.security_context.categories = security_items[4]
+                if len(items) > sec_idx:
+                    context.type_def = TypeDef()
+                    security_items = items[sec_idx].split(":")
+                    context.security_context = SecurityContext()
+                    # print(security_items)
+                    context.where_is_it = self.policy_file.where_is_it
+                    if len(security_items) >= 1:
+                        context.security_context.user = security_items[0]
+                    if len(security_items) >= 2:
+                        context.security_context.role = security_items[1]
+                    if len(security_items) >= 3:
+                        context.security_context.type = security_items[2]
+                    if len(security_items) >= 4:
+                        context.security_context.level = security_items[3]
+
+                    context.domain_name = context.security_context.type
+                    if len(security_items) > 4:
+                        context.security_context.categories = security_items[4]
             # print(context)
             return context
         except Exception as err:

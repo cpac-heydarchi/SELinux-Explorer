@@ -5,6 +5,17 @@ from model.PolicyEntities import *
 from PythonUtilityClasses import FileReader as FR
 from MyLogger import MyLogger
 
+# Map camelCase key names used in real Android seapp_contexts files to the
+# canonical snake_case attribute names used in SeAppContext.
+_SEAPP_KEY_ALIASES = {
+    "isPrivApp": "is_priv_app",
+    "isSystemServer": "is_system_server",
+    "isEphemeralApp": "is_ephemeral_app",
+    "fromRunAs": "from_run_as",
+    "minTargetSdkVersion": "min_target_sdk_version",
+    "levelFrom": "level_from",
+}
+
 
 class SeAppAnalyzer(AbstractAnalyzer):
     def __init__(self) -> None:
@@ -37,37 +48,42 @@ class SeAppAnalyzer(AbstractAnalyzer):
                 se_app.never_allow = True
                 input_string = input_string.replace("neverallow", "").strip()
 
-            items = input_string.strip().split(" ")
+            items = input_string.strip().split()
             se_app.where_is_it = self.policy_file.where_is_it
 
             for item in items:
-                split = item.split("=")
+                split = item.split("=", 1)
+                if len(split) < 2:
+                    continue
+                # Normalise camelCase keys (Android format) to snake_case
+                key = _SEAPP_KEY_ALIASES.get(split[0], split[0])
+                value = split[1]
                 # Input selectors
-                if "user" in split[0]:
-                    se_app.user = split[1]
-                elif "is_priv_app" in split[0]:
-                    se_app.is_priv_app = self.convert_to_boolean(split[1])
-                elif "is_system_server" in split[0]:
-                    se_app.is_system_server = self.convert_to_boolean(split[1])
-                elif "is_ephemeral_app" in split[0]:
-                    se_app.is_ephemeral_app = self.convert_to_boolean(split[1])
-                elif "name" in split[0]:
-                    se_app.name = split[1]
-                elif "min_target_sdk_version" in split[0]:
-                    se_app.min_target_sdk_version = split[1]
-                elif "from_run_as" in split[0]:
-                    se_app.from_run_as = split[1]
-                elif "seinfo" in split[0]:
-                    se_app.seinfo = split[1]
+                if key == "user":
+                    se_app.user = value
+                elif key == "is_priv_app":
+                    se_app.is_priv_app = self.convert_to_boolean(value)
+                elif key == "is_system_server":
+                    se_app.is_system_server = self.convert_to_boolean(value)
+                elif key == "is_ephemeral_app":
+                    se_app.is_ephemeral_app = self.convert_to_boolean(value)
+                elif key == "name":
+                    se_app.name = value
+                elif key == "min_target_sdk_version":
+                    se_app.min_target_sdk_version = value
+                elif key == "from_run_as":
+                    se_app.from_run_as = value
+                elif key == "seinfo":
+                    se_app.seinfo = value
                 # Outputs
-                elif "domain" in split[0]:
-                    se_app.domain = split[1]
-                elif "type" in split[0]:
-                    se_app.type = split[1]
-                elif "level_from" in split[0]:
-                    se_app.level_from = split[1]
-                elif "level" in split[0]:
-                    se_app.level = split[1]
+                elif key == "domain":
+                    se_app.domain = value
+                elif key == "type":
+                    se_app.type = value
+                elif key == "level_from":
+                    se_app.level_from = value
+                elif key == "level":
+                    se_app.level = value
 
             return se_app
 
