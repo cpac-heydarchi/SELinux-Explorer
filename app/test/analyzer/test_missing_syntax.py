@@ -15,9 +15,7 @@ from model.PolicyEntities import FileTypeEnum, PolicyFile
 from analyzer.TeAnalyzer import TeAnalyzer
 from analyzer.FileAnalyzer import FileAnalyzer
 
-SAMPLES_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "samples")
-)
+SAMPLES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
 
 # ---------------------------------------------------------------------------
@@ -51,9 +49,9 @@ class TestTypeTransition:
         """type_transition src tgt:class default; must be stored in type_transitions."""
         te = _te()
         te.process_line("type_transition dummy dummy_new_exec:process dummy_new;")
-        assert te.policy_file.type_transitions, (
-            "type_transition rule was not stored; process_line does not handle it"
-        )
+        assert (
+            te.policy_file.type_transitions
+        ), "type_transition rule was not stored; process_line does not handle it"
         tt = te.policy_file.type_transitions[0]
         assert tt.source == "dummy"
         assert tt.target == "dummy_new_exec"
@@ -87,9 +85,9 @@ class TestTypeTransition:
         """type_change src tgt:class default; must also be stored."""
         te = _te()
         te.process_line("type_change dummy dummy_new_exec:file dummy_rw_t;")
-        assert te.policy_file.type_transitions, (
-            "type_change was not parsed; process_line does not handle it"
-        )
+        assert (
+            te.policy_file.type_transitions
+        ), "type_change was not parsed; process_line does not handle it"
         tt = te.policy_file.type_transitions[0]
         assert tt.rule_type == "type_change"
         assert tt.source == "dummy"
@@ -122,9 +120,9 @@ class TestNegatedSets:
         appear as a source in the generated rules."""
         rules = _te().extract_rule("allow { domain1 -domain2 } target:file read;")
         sources = {r.source for r in rules}
-        assert "-domain2" not in sources, (
-            f"Negated type '-domain2' leaked into sources: {sources}"
-        )
+        assert (
+            "-domain2" not in sources
+        ), f"Negated type '-domain2' leaked into sources: {sources}"
         assert "domain1" in sources, "Non-negated source 'domain1' is missing"
 
     def test_negated_target_not_in_rules(self):
@@ -134,9 +132,9 @@ class TestNegatedSets:
             "neverallow appdomain { system_file -vendor_file }:file execute;"
         )
         targets = {r.target for r in rules}
-        assert "-vendor_file" not in targets, (
-            f"Negated type '-vendor_file' leaked into targets: {targets}"
-        )
+        assert (
+            "-vendor_file" not in targets
+        ), f"Negated type '-vendor_file' leaked into targets: {targets}"
         assert "system_file" in targets
 
     def test_only_negated_source_produces_no_rules(self):
@@ -165,9 +163,9 @@ class TestRequireBlock:
             "}",
         ]
         result = te.extract_items_to_process(lines)
-        assert not any("require" in item for item in result), (
-            f"require block content leaked into output: {result}"
-        )
+        assert not any(
+            "require" in item for item in result
+        ), f"require block content leaked into output: {result}"
 
     def test_rule_after_require_block_is_parsed(self):
         """A rule that follows a require { … } block must still be processed."""
@@ -179,9 +177,9 @@ class TestRequireBlock:
             "allow dummy servicemanager:binder { call transfer };",
         ]
         result = te.extract_items_to_process(lines)
-        assert any("allow dummy servicemanager" in item for item in result), (
-            f"Rule after require block was lost. Extracted: {result}"
-        )
+        assert any(
+            "allow dummy servicemanager" in item for item in result
+        ), f"Rule after require block was lost. Extracted: {result}"
 
     def test_single_line_require_skipped(self):
         """require { type foo; } on one line must also be skipped."""
@@ -225,9 +223,7 @@ class TestIfdefBlock:
         result = te.extract_items_to_process(lines)
         assert any(
             "allow dummy_new dummy_new_exec:file" in item for item in result
-        ), (
-            f"Body rule inside ifdef was not extracted. Extracted items: {result}"
-        )
+        ), f"Body rule inside ifdef was not extracted. Extracted items: {result}"
 
     def test_ifndef_body_rule_extracted(self):
         """Rules inside ifndef(…) must also be extracted."""
@@ -238,9 +234,9 @@ class TestIfdefBlock:
             "')",
         ]
         result = te.extract_items_to_process(lines)
-        assert any("allow domain target:file read" in item for item in result), (
-            f"Body rule inside ifndef was not extracted. Extracted items: {result}"
-        )
+        assert any(
+            "allow domain target:file read" in item for item in result
+        ), f"Body rule inside ifndef was not extracted. Extracted items: {result}"
 
     def test_ifdef_with_else_branch_both_extracted(self):
         """Both true and false branches of an ifdef are extracted (best-effort
@@ -255,9 +251,9 @@ class TestIfdefBlock:
         ]
         result = te.extract_items_to_process(lines)
         combined = " ".join(result)
-        assert "read" in combined or "write" in combined, (
-            f"No ifdef branch rules extracted. Result: {result}"
-        )
+        assert (
+            "read" in combined or "write" in combined
+        ), f"No ifdef branch rules extracted. Result: {result}"
 
     def test_rule_after_ifdef_block_still_parsed(self):
         """A rule after an ifdef block must not be lost."""
@@ -269,9 +265,9 @@ class TestIfdefBlock:
             "allow standalone source:file { write };",
         ]
         result = te.extract_items_to_process(lines)
-        assert any("standalone" in item for item in result), (
-            f"Rule after ifdef block was lost. Result: {result}"
-        )
+        assert any(
+            "standalone" in item for item in result
+        ), f"Rule after ifdef block was lost. Result: {result}"
 
 
 # ---------------------------------------------------------------------------
@@ -294,24 +290,27 @@ class TestNewSyntaxIntegration:
         tts = self._all(parsed, "type_transitions")
         assert tts, "No type_transitions parsed from test_new_syntax.te"
         sources = {t.source for t in tts}
-        assert "dummy" in sources, f"Expected 'dummy' in type_transition sources; got {sources}"
+        assert (
+            "dummy" in sources
+        ), f"Expected 'dummy' in type_transition sources; got {sources}"
 
     def test_negated_types_not_in_rules(self, parsed):
         """Negated types from the sample file must not appear in parsed rules."""
         rules = self._all(parsed, "rules")
         bad = [r for r in rules if r.source.startswith("-") or r.target.startswith("-")]
-        assert not bad, (
-            f"Found {len(bad)} rule(s) with negated type names: "
-            + "; ".join(f"{r.source}->{r.target}" for r in bad[:5])
+        assert (
+            not bad
+        ), f"Found {len(bad)} rule(s) with negated type names: " + "; ".join(
+            f"{r.source}->{r.target}" for r in bad[:5]
         )
 
     def test_rule_after_require_block_in_sample(self, parsed):
         """allow dummy_new servicemanager:… must appear despite the require block."""
         rules = self._all(parsed, "rules")
-        found = any(r.source == "dummy_new" and r.target == "servicemanager" for r in rules)
-        assert found, (
-            "Rule after require block in test_new_syntax.te was not parsed"
+        found = any(
+            r.source == "dummy_new" and r.target == "servicemanager" for r in rules
         )
+        assert found, "Rule after require block in test_new_syntax.te was not parsed"
 
     def test_ifdef_body_rule_in_sample(self, parsed):
         """Rule inside ifdef block in test_new_syntax.te must be parsed."""
