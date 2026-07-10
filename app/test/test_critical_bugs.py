@@ -27,6 +27,7 @@ from logic.FilterResult import FilterResult, FilterRule, FilterType
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _pf():
     return PolicyFile("test_file", "", FileTypeEnum.FILE_CONTEXTS)
 
@@ -50,6 +51,7 @@ def _te():
 #      corrupting user/role/type/level and leaving Context.file_type empty.
 # ---------------------------------------------------------------------------
 
+
 class TestContextsFileTypeFlag:
     def test_flag_d_does_not_corrupt_security_context(self):
         """-d flag must be stored in context.file_type; security context must use
@@ -70,9 +72,7 @@ class TestContextsFileTypeFlag:
         c = _contexts_analyzer().extract_definition(
             "/data/misc/dummy  -d  u:object_r:dummy_data_file:s0"
         )
-        assert c.file_type == "-d", (
-            f"file_type should be '-d', got '{c.file_type}'"
-        )
+        assert c.file_type == "-d", f"file_type should be '-d', got '{c.file_type}'"
 
     def test_all_seven_flags_recognized(self):
         """All seven file-type flags must be parsed without corrupting the
@@ -80,9 +80,9 @@ class TestContextsFileTypeFlag:
         a = _contexts_analyzer()
         for flag in ("-f", "-d", "-l", "-c", "-b", "-s", "-p"):
             c = a.extract_definition(f"/some/path  {flag}  u:object_r:test_t:s0")
-            assert c.file_type == flag, (
-                f"Flag {flag} not stored; got file_type='{c.file_type}'"
-            )
+            assert (
+                c.file_type == flag
+            ), f"Flag {flag} not stored; got file_type='{c.file_type}'"
             assert c.security_context.user == "u", (
                 f"Flag {flag} corrupted security_context.user: "
                 f"got '{c.security_context.user}'"
@@ -97,7 +97,9 @@ class TestContextsFileTypeFlag:
         c = _contexts_analyzer().extract_definition(
             "/vendor/bin/hw/svc  u:object_r:vendor_exec:s0"
         )
-        assert c.file_type == "", f"No flag present, file_type should be '', got '{c.file_type}'"
+        assert (
+            c.file_type == ""
+        ), f"No flag present, file_type should be '', got '{c.file_type}'"
         assert c.security_context.user == "u"
         assert c.security_context.type == "vendor_exec"
 
@@ -107,6 +109,7 @@ class TestContextsFileTypeFlag:
 #      Without it, dataclasses.is_dataclass() returns False,
 #      dataclasses.fields() raises TypeError, and JSON serialization breaks.
 # ---------------------------------------------------------------------------
+
 
 class TestTypeAlias:
     def test_type_alias_is_a_dataclass(self):
@@ -120,9 +123,9 @@ class TestTypeAlias:
     def test_type_alias_fields_are_instance_scoped(self):
         """After @dataclass is added, fields() must enumerate all three fields."""
         field_names = {f.name for f in dataclasses.fields(TypeAlias)}
-        assert {"name", "alias", "where_is_it"}.issubset(field_names), (
-            f"Expected fields name/alias/where_is_it; got {field_names}"
-        )
+        assert {"name", "alias", "where_is_it"}.issubset(
+            field_names
+        ), f"Expected fields name/alias/where_is_it; got {field_names}"
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +134,7 @@ class TestTypeAlias:
 #      AdvancedDrawer.draw_uml reads policy_file.file_name.
 #      Both raise AttributeError when the field is absent.
 # ---------------------------------------------------------------------------
+
 
 class TestPolicyFileFileName:
     def test_policy_file_has_file_name_field(self):
@@ -161,6 +165,7 @@ class TestPolicyFileFileName:
 #      serialization and dataclasses.fields() does not enumerate it.
 # ---------------------------------------------------------------------------
 
+
 class TestSeAppContextLevel:
     def test_seapp_context_has_level_field(self):
         """SeAppContext must declare a level field."""
@@ -188,6 +193,7 @@ class TestSeAppContextLevel:
 #      temp_rule = rule is a reference, not a copy.
 #      temp_rule.permissions = [filter_rule.keyword] overwrites the original.
 # ---------------------------------------------------------------------------
+
 
 class TestFilterPermissionMutation:
     def _make_policy_with_rule(self, permissions):
@@ -240,10 +246,14 @@ class TestFilterPermissionMutation:
 
         fr = FilterResult()
         # First filter: read
-        fr.filter_permission(FilterRule(FilterType.PERMISSION, "read", False), pf, PolicyFile())
+        fr.filter_permission(
+            FilterRule(FilterType.PERMISSION, "read", False), pf, PolicyFile()
+        )
         # Second filter: write — must still work on the un-mutated pf
         filtered_write = PolicyFile()
-        fr.filter_permission(FilterRule(FilterType.PERMISSION, "write", False), pf, filtered_write)
+        fr.filter_permission(
+            FilterRule(FilterType.PERMISSION, "write", False), pf, filtered_write
+        )
 
         assert filtered_write.rules, (
             "No 'write' rules found after 'read' filter ran first. "
@@ -256,6 +266,7 @@ class TestFilterPermissionMutation:
 #      String comparisons (rule.rule == "allow") silently return False.
 #      to_string() produces "RuleEnum.ALLOW" instead of "allow".
 # ---------------------------------------------------------------------------
+
 
 class TestRuleRuleField:
     def test_extract_rule_stores_string_keyword(self):
@@ -271,15 +282,15 @@ class TestRuleRuleField:
         """neverallow rules must also store the string keyword."""
         rules = _te().extract_rule("neverallow src tgt:file write;")
         assert rules
-        assert rules[0].rule == "neverallow", (
-            f"Expected 'neverallow', got {repr(rules[0].rule)}"
-        )
+        assert (
+            rules[0].rule == "neverallow"
+        ), f"Expected 'neverallow', got {repr(rules[0].rule)}"
 
     def test_rule_to_string_does_not_contain_enum_repr(self):
         """to_string() must not produce 'RuleEnum.ALLOW'; it must produce 'allow'."""
         rules = _te().extract_rule("allow src tgt:file read;")
         assert rules
         s = rules[0].to_string()
-        assert "RuleEnum" not in s, (
-            f"to_string() contains enum repr 'RuleEnum': {s[:120]}"
-        )
+        assert (
+            "RuleEnum" not in s
+        ), f"to_string() contains enum repr 'RuleEnum': {s[:120]}"

@@ -282,7 +282,7 @@ class TeAnalyzer(AbstractAnalyzer):
                     if colon_pos < 0:
                         break  # malformed rule, no target:class separator
                     target_token = items[2][:colon_pos]
-                    class_token = items[2][colon_pos + 1:]
+                    class_token = items[2][colon_pos + 1 :]
 
                     targets = (
                         [target_token]

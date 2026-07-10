@@ -21,14 +21,13 @@ import pytest
 from analyzer.FileAnalyzer import FileAnalyzer
 from model.PolicyEntities import RuleEnum
 
-SAMPLES_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "samples")
-)
+SAMPLES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "samples"))
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_all(results, attr):
     """Flatten a list attribute from every PolicyFile in results."""
@@ -48,14 +47,14 @@ def parsed():
 # 1 & 2 & 3 – multi-class rule parsing (the ###-placeholder bug)
 # ---------------------------------------------------------------------------
 
+
 class TestMultiClassRules:
     def test_multiclass_allow_produces_correct_class_types(self, parsed):
         """dummy.te: allow dummy dummy_exec:{file lnk_file} {read getattr open execute};
         must create two rules whose class_type is 'file' and 'lnk_file', not '###'."""
         rules = _get_all(parsed, "rules")
         target_rules = [
-            r for r in rules
-            if r.source == "dummy" and r.target == "dummy_exec"
+            r for r in rules if r.source == "dummy" and r.target == "dummy_exec"
         ]
         assert target_rules, (
             "No rules found with source='dummy', target='dummy_exec'. "
@@ -66,79 +65,83 @@ class TestMultiClassRules:
             f"Internal placeholder '###' leaked into class_type. "
             f"Multi-class rule parsing is still broken. Got: {class_types}"
         )
-        assert "file" in class_types, (
-            f"Expected class_type 'file' in multi-class rule; got {class_types}"
-        )
-        assert "lnk_file" in class_types, (
-            f"Expected class_type 'lnk_file' in multi-class rule; got {class_types}"
-        )
+        assert (
+            "file" in class_types
+        ), f"Expected class_type 'file' in multi-class rule; got {class_types}"
+        assert (
+            "lnk_file" in class_types
+        ), f"Expected class_type 'lnk_file' in multi-class rule; got {class_types}"
 
     def test_multiclass_allow_three_classes(self, parsed):
         """dummy.te: allow dummy dummy_exec:{file lnk_file chr_file} getattr;
         must produce three rules, one per class."""
         rules = _get_all(parsed, "rules")
         getattr_rules = [
-            r for r in rules
+            r
+            for r in rules
             if r.source == "dummy"
             and r.target == "dummy_exec"
             and "getattr" in r.permissions
         ]
         class_types = {r.class_type for r in getattr_rules}
-        assert "###" not in class_types, (
-            f"Placeholder '###' in class_type for three-class rule: {class_types}"
-        )
-        assert {"file", "lnk_file", "chr_file"}.issubset(class_types), (
-            f"Expected all of {{file, lnk_file, chr_file}} in class_types; got {class_types}"
-        )
+        assert (
+            "###" not in class_types
+        ), f"Placeholder '###' in class_type for three-class rule: {class_types}"
+        assert {"file", "lnk_file", "chr_file"}.issubset(
+            class_types
+        ), f"Expected all of {{file, lnk_file, chr_file}} in class_types; got {class_types}"
 
     def test_multisource_multiclass_allow(self, parsed):
         """hal_dummy.te: allow {system_app priv_app} hal_dummy_hwservice:{hwservice_manager service_manager} find;
         must produce 4 rules (2 sources × 2 classes), all with correct fields."""
         rules = _get_all(parsed, "rules")
         combo_rules = [
-            r for r in rules
+            r
+            for r in rules
             if r.source in {"system_app", "priv_app"}
             and r.target == "hal_dummy_hwservice"
             and "find" in r.permissions
         ]
-        assert combo_rules, (
-            "No rules found for multi-source+multi-class rule in hal_dummy.te"
-        )
+        assert (
+            combo_rules
+        ), "No rules found for multi-source+multi-class rule in hal_dummy.te"
         class_types = {r.class_type for r in combo_rules}
         sources = {r.source for r in combo_rules}
-        assert "###" not in class_types, (
-            f"Placeholder '###' in class_type for multi-source+multi-class rule: {class_types}"
-        )
-        assert "hwservice_manager" in class_types, (
-            f"class_type 'hwservice_manager' missing; got {class_types}"
-        )
-        assert "service_manager" in class_types, (
-            f"class_type 'service_manager' missing; got {class_types}"
-        )
-        assert "system_app" in sources and "priv_app" in sources, (
-            f"Not all sources present; got {sources}"
-        )
+        assert (
+            "###" not in class_types
+        ), f"Placeholder '###' in class_type for multi-source+multi-class rule: {class_types}"
+        assert (
+            "hwservice_manager" in class_types
+        ), f"class_type 'hwservice_manager' missing; got {class_types}"
+        assert (
+            "service_manager" in class_types
+        ), f"class_type 'service_manager' missing; got {class_types}"
+        assert (
+            "system_app" in sources and "priv_app" in sources
+        ), f"Not all sources present; got {sources}"
 
     def test_multiclass_neverallow_no_placeholder(self, parsed):
         """dummy.te: neverallow dummy dummy_exec:{file dir} write;
         must produce two rules, none with class_type='###'."""
         rules = _get_all(parsed, "rules")
         neverallow_rules = [
-            r for r in rules
-            if str(r.rule) in (str(RuleEnum.NEVER_ALLOW), "neverallow", "RuleEnum.NEVER_ALLOW")
+            r
+            for r in rules
+            if str(r.rule)
+            in (str(RuleEnum.NEVER_ALLOW), "neverallow", "RuleEnum.NEVER_ALLOW")
             and r.source == "dummy"
             and r.target == "dummy_exec"
         ]
-        assert neverallow_rules, (
-            "No neverallow rules found for dummy→dummy_exec in dummy.te"
-        )
+        assert (
+            neverallow_rules
+        ), "No neverallow rules found for dummy→dummy_exec in dummy.te"
         class_types = {r.class_type for r in neverallow_rules}
-        assert "###" not in class_types, (
-            f"Placeholder '###' in neverallow rule class_type: {class_types}"
-        )
-        assert {"file", "dir"}.issubset(class_types), (
-            f"Expected {{file, dir}} in neverallow class_types; got {class_types}"
-        )
+        assert (
+            "###" not in class_types
+        ), f"Placeholder '###' in neverallow rule class_type: {class_types}"
+        assert {"file", "dir"}.issubset(
+            class_types
+        ), f"Expected {{file, dir}} in neverallow class_types; got {class_types}"
 
     def test_no_hash_placeholder_anywhere(self, parsed):
         """Regression: no rule in any sample file should have class_type='###'."""
@@ -154,14 +157,13 @@ class TestMultiClassRules:
 # 4 – seapp_contexts with multiple consecutive spaces
 # ---------------------------------------------------------------------------
 
+
 class TestSeappMultipleSpaces:
     def test_multispace_entry_all_fields_correct(self, parsed):
         """seapp_contexts: the entry with double spaces between key=value pairs
         must have all fields correctly stored, not run together."""
         se_apps = _get_all(parsed, "se_apps")
-        entry = next(
-            (a for a in se_apps if a.name == "com.example.dummy"), None
-        )
+        entry = next((a for a in se_apps if a.name == "com.example.dummy"), None)
         assert entry is not None, (
             "seapp entry with name='com.example.dummy' not found. "
             "Check that the multi-space entry in seapp_contexts was parsed."
@@ -170,15 +172,15 @@ class TestSeappMultipleSpaces:
             f"user should be '_app', got '{entry.user}'. "
             "Likely caused by tab/multi-space tokenisation bug."
         )
-        assert entry.seinfo == "platform", (
-            f"seinfo should be 'platform', got '{entry.seinfo}'"
-        )
-        assert entry.domain == "dummy_client", (
-            f"domain should be 'dummy_client', got '{entry.domain}'"
-        )
-        assert entry.type == "app_data_file", (
-            f"type should be 'app_data_file', got '{entry.type}'"
-        )
+        assert (
+            entry.seinfo == "platform"
+        ), f"seinfo should be 'platform', got '{entry.seinfo}'"
+        assert (
+            entry.domain == "dummy_client"
+        ), f"domain should be 'dummy_client', got '{entry.domain}'"
+        assert (
+            entry.type == "app_data_file"
+        ), f"type should be 'app_data_file', got '{entry.type}'"
 
     def test_original_seapp_entry_still_parsed(self, parsed):
         """The original seapp_contexts entry must not be broken by the new addition."""
@@ -186,9 +188,9 @@ class TestSeappMultipleSpaces:
         entry = next(
             (a for a in se_apps if a.name == "com.aospinsight.dummyaidlapp"), None
         )
-        assert entry is not None, (
-            "Original seapp entry 'com.aospinsight.dummyaidlapp' not found"
-        )
+        assert (
+            entry is not None
+        ), "Original seapp entry 'com.aospinsight.dummyaidlapp' not found"
         assert entry.domain == "dummyapp_service"
         assert entry.seinfo == "platform"
 
@@ -196,6 +198,7 @@ class TestSeappMultipleSpaces:
 # ---------------------------------------------------------------------------
 # 5 – file_contexts: additional path entries
 # ---------------------------------------------------------------------------
+
 
 class TestFileContexts:
     def test_additional_file_contexts_parsed(self, parsed):

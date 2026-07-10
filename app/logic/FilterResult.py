@@ -159,6 +159,7 @@ class FilterResult:
             if filter_rule.keyword in rule.permissions:
                 # print(rule)
                 import copy
+
                 temp_rule = copy.copy(rule)
                 temp_rule.permissions = [filter_rule.keyword]
                 filtered_policy_file.rules.append(temp_rule)

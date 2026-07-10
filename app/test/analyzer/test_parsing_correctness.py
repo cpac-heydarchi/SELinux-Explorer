@@ -16,6 +16,7 @@ from analyzer.AnalyzerUtility import clean_line
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _te(policy_file=None):
     t = TeAnalyzer()
     t.policy_file = policy_file or PolicyFile("test.te", "", FileTypeEnum.TE_FILE)
@@ -40,6 +41,7 @@ def _seapp(policy_file=None):
 #        Rule(source="src", target="tgt", class_type="cls2", permissions=["perm"])
 # ---------------------------------------------------------------------------
 
+
 def test_extract_rule_multiclass_single_perm():
     """Multi-class with a single permission – target and class_type must be correct."""
     rules = _te().extract_rule("allow src tgt:{cls1 cls2} perm;")
@@ -50,9 +52,10 @@ def test_extract_rule_multiclass_single_perm():
     class_types = {r.class_type for r in rules}
 
     assert targets == {"tgt"}, f"target should be 'tgt', got {targets}"
-    assert class_types == {"cls1", "cls2"}, (
-        f"class_type should be {{'cls1','cls2'}}, got {class_types}"
-    )
+    assert class_types == {
+        "cls1",
+        "cls2",
+    }, f"class_type should be {{'cls1','cls2'}}, got {class_types}"
     assert all(r.source == "src" for r in rules)
     assert all(r.permissions == ["perm"] for r in rules)
 
@@ -67,9 +70,10 @@ def test_extract_rule_multiclass_multi_perm():
     class_types = {r.class_type for r in rules}
 
     assert targets == {"tgt"}, f"target should be 'tgt', got {targets}"
-    assert class_types == {"cls1", "cls2"}, (
-        f"class_type should be {{'cls1','cls2'}}, got {class_types}"
-    )
+    assert class_types == {
+        "cls1",
+        "cls2",
+    }, f"class_type should be {{'cls1','cls2'}}, got {class_types}"
     assert all(r.source == "src" for r in rules)
     assert all(set(r.permissions) == {"p1", "p2"} for r in rules)
 
@@ -91,6 +95,7 @@ def test_extract_rule_multiclass_no_class_type_is_hash_placeholder():
 #      as the value of the first key.
 # ---------------------------------------------------------------------------
 
+
 def test_seapp_tab_separated_fields_are_parsed():
     """Fields separated by a tab character must each be stored in the right attribute."""
     se_app = _seapp().extract_definition(
@@ -101,9 +106,13 @@ def test_seapp_tab_separated_fields_are_parsed():
         f"user should be '_app', got '{se_app.user}' "
         f"(tab after value was probably consumed into the user field)"
     )
-    assert se_app.seinfo == "platform", f"seinfo should be 'platform', got '{se_app.seinfo}'"
+    assert (
+        se_app.seinfo == "platform"
+    ), f"seinfo should be 'platform', got '{se_app.seinfo}'"
     assert se_app.domain == "myapp", f"domain should be 'myapp', got '{se_app.domain}'"
-    assert se_app.type == "app_data_file", f"type should be 'app_data_file', got '{se_app.type}'"
+    assert (
+        se_app.type == "app_data_file"
+    ), f"type should be 'app_data_file', got '{se_app.type}'"
 
 
 def test_seapp_mixed_whitespace_all_fields_parsed():
@@ -124,6 +133,7 @@ def test_seapp_mixed_whitespace_all_fields_parsed():
 #      contain a double-dash (e.g., vendor type names like "hal--service").
 # ---------------------------------------------------------------------------
 
+
 def test_clean_line_preserves_double_dash_in_identifier():
     """A type name containing '--' must be returned intact; not silently mangled."""
     line = "allow hal--service target:file { read };"
@@ -132,9 +142,9 @@ def test_clean_line_preserves_double_dash_in_identifier():
         f"clean_line removed '--' from content: got '{result}'. "
         "The unconditional replace('--', '') must be removed."
     )
-    assert "hal--service" in result, (
-        f"Identifier 'hal--service' was corrupted to '{result}'"
-    )
+    assert (
+        "hal--service" in result
+    ), f"Identifier 'hal--service' was corrupted to '{result}'"
 
 
 def test_clean_line_double_dash_comment_style():
@@ -146,9 +156,9 @@ def test_clean_line_double_dash_comment_style():
     # After the fix the identifier must be preserved; the '-- legacy name' part
     # can be stripped or kept, but 'hal--svc' must not become 'halsvc'.
     assert result is not None
-    assert "hal--svc" in result, (
-        f"Identifier 'hal--svc' should be present in cleaned result, got: '{result}'"
-    )
+    assert (
+        "hal--svc" in result
+    ), f"Identifier 'hal--svc' should be present in cleaned result, got: '{result}'"
 
 
 # ---------------------------------------------------------------------------
@@ -156,14 +166,15 @@ def test_clean_line_double_dash_comment_style():
 #      subsequent lines to be absorbed into tmp_lst_lines and never emitted.
 # ---------------------------------------------------------------------------
 
+
 def test_extract_items_unclosed_define_does_not_swallow_subsequent_rules():
     """
     A malformed file where a define() macro is never closed must not silently
     discard rules that appear after the unclosed block.
     """
     lines = [
-        "define(`my_macro', `",          # opens macro, never closed
-        "allow a b:c { read };",          # inside unclosed macro body
+        "define(`my_macro', `",  # opens macro, never closed
+        "allow a b:c { read };",  # inside unclosed macro body
         # No closing ')'
         "allow standalone source:file { write };",  # rule AFTER the broken block
     ]
@@ -188,6 +199,7 @@ def test_extract_items_unclosed_define_does_not_swallow_subsequent_rules():
 #      contains "=" (e.g. name=com.example=v2 → only stores "com.example").
 # ---------------------------------------------------------------------------
 
+
 def test_seapp_substring_key_does_not_match_superset_key():
     """A key like 'seinfo_extra' must NOT match the 'seinfo' handler."""
     se_app = _seapp().extract_definition(
@@ -203,9 +215,7 @@ def test_seapp_substring_key_does_not_match_superset_key():
 
 def test_seapp_value_with_equals_sign_preserved():
     """A value that contains '=' must be stored in full (requires split('=', 1))."""
-    se_app = _seapp().extract_definition(
-        "user=_app name=com.example=v2 domain=myapp"
-    )
+    se_app = _seapp().extract_definition("user=_app name=com.example=v2 domain=myapp")
     assert se_app.name == "com.example=v2", (
         f"name should be 'com.example=v2', got '{se_app.name}'. "
         "split('=') without a limit drops the '=v2' portion of the value."
@@ -223,9 +233,9 @@ def test_seapp_camelcase_levelFrom_parsed_correctly():
         "The camelCase key 'levelFrom' was not mapped to level_from."
     )
     # The 'level' field must remain empty — levelFrom must not fall through to it
-    assert getattr(se_app, "level", "") != "user", (
-        "The value 'user' landed in se_app.level instead of se_app.level_from."
-    )
+    assert (
+        getattr(se_app, "level", "") != "user"
+    ), "The value 'user' landed in se_app.level instead of se_app.level_from."
 
 
 def test_seapp_camelcase_isPrivApp_parsed_correctly():
