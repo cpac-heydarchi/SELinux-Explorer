@@ -159,7 +159,7 @@ class AdvancedDrawer(AbstractDrawer):
         rule_list = []
         for rule in rules:
             for permission in rule.permissions:
-                if rule.rule == RuleEnum.NEVER_ALLOW:
+                if rule.rule == RuleEnum.NEVER_ALLOW.value:
                     rule_list.append(
                         ""
                         + self.correct_name(rule.source)
