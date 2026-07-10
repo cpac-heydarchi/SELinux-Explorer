@@ -108,6 +108,80 @@ python main.py
 ```
 <br/>
 
+## Docker
+
+Docker is the easiest way to run SELinux Explorer without installing any system
+dependencies manually. The image bundles Python 3.12, PyQt5, Graphviz, Java 21,
+and PlantUML.
+
+### Build the image
+
+```bash
+git clone https://github.com/cpac-heydarchi/SELinux-Explorer.git
+cd SELinux-Explorer
+git submodule update --init --recursive
+docker build -t selinux-explorer .
+```
+
+### Run – with a local X11 display (Linux)
+
+Docker containers have a different hostname than the host, so the standard
+`~/.Xauthority` file is rejected. A docker-compatible auth cookie must be
+created **once per login session** and the variable must be set **in the same
+shell** as the `docker run` command.
+
+```bash
+# 1. Create a wildcard-hostname auth cookie (once per session)
+XAUTH_DOCKER=/tmp/.docker.xauth
+touch $XAUTH_DOCKER
+xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH_DOCKER nmerge -
+
+# 2. Run the container in the same shell (XAUTH_DOCKER must still be set)
+docker run --rm -it \
+  -e DISPLAY=$DISPLAY \
+  -e XAUTHORITY=/tmp/.Xauth \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v $XAUTH_DOCKER:/tmp/.Xauth:ro \
+  -v $(pwd)/policy:/policy \
+  selinux-explorer
+```
+
+> **Tip:** add `export XAUTH_DOCKER=/tmp/.docker.xauth` to `~/.bashrc` so the
+> variable survives across terminal sessions. You still need to re-run the
+> `xauth nlist …` cookie-generation command after each login.
+
+### Run – headless (no display required)
+
+Starts a virtual framebuffer (Xvfb) inside the container automatically. Useful
+on servers, CI, or WSL without an X server:
+
+```bash
+docker run --rm -it \
+  -v $(pwd)/policy:/policy \
+  selinux-explorer headless
+```
+
+### Run – tests only
+
+```bash
+docker run --rm selinux-explorer pytest app/test -q
+```
+
+### Mount your policy files
+
+Pass your policy directory as a volume so the tool can analyse it:
+
+```bash
+docker run --rm -it \
+  -e DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v /path/to/your/policy:/policy \
+  selinux-explorer
+```
+
+Inside the GUI, add `/policy` as a source path.
+<br/>
+
 ## Contributing
 
 Thank you for your interest in contributing to SELinux Explorer! We welcome and appreciate any contributions, whether it's bug reports, feature requests, code, documentation, or testing. Please refer to our [CONTRIBUTION.md](CONTRIBUTING.md) file for detailed guidelines on how to set up your development environment, check code style, run tests, and submit your changes.
