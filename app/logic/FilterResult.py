@@ -41,6 +41,11 @@ class FilterRule(JSONWizard):
 
 
 class FilterResult:
+    # Maximum length for the base filename (without directory or extension).
+    # Linux allows 255 bytes per component; we use 180 to leave headroom for
+    # the "out/seq_" prefix, the ".puml" / ".png" suffix, and multibyte chars.
+    _MAX_FILENAME_LEN = 180
+
     def filter(self, lst_rules, policy_file):
         filtered_policy_file = PolicyFile()
         filtered_policy_file.file_name = "domain_filtered"
@@ -50,6 +55,12 @@ class FilterResult:
                 filtered_policy_file.file_name
                 + ("_ew_" if filter_rule.exact_word else "_")
                 + filter_rule.keyword
+            )
+
+        # Truncate to stay within the OS filename-length limit
+        if len(filtered_policy_file.file_name) > self._MAX_FILENAME_LEN:
+            filtered_policy_file.file_name = (
+                filtered_policy_file.file_name[: self._MAX_FILENAME_LEN - 3] + "___"
             )
 
             if FilterType(filter_rule.filter_type) == FilterType.DOMAIN:
