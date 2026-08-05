@@ -4,6 +4,7 @@ from drawer.AdvanceDrawer import *
 from dataclasses import dataclass
 from dataclass_wizard import JSONWizard
 from drawer.DrawerHelper import *
+from logic.PolicyRepository import PolicyRepository
 
 
 class FilterType(Enum):
@@ -99,37 +100,12 @@ class FilterResult:
         )
 
     def remove_duplicated_Items(self, filtered_policy_file):
-        """Remove duplicated items from type_def,
-        contexts,se_apps, rules, macros of
-        filtered_policy_file"""
-        # print(filtered_policy_file.type_def)
-        filtered_policy_file.type_def = list(
-            {item.name: item for item in filtered_policy_file.type_def}.values()
-        )
-        filtered_policy_file.contexts = list(
-            {item.path_name: item for item in filtered_policy_file.contexts}.values()
-        )
-        filtered_policy_file.se_apps = list(
-            {item.name: item for item in filtered_policy_file.se_apps}.values()
-        )
+        """Remove duplicated items from filtered_policy_file.
 
-        # Define a lambda function to extract a hashable representation of each
-        # Rule object
-        def get_hashable_rule(r):
-            return (
-                r.rule,
-                r.source,
-                r.target,
-                r.class_type,
-                tuple(sorted(r.permissions)),
-            )
-
-        # Remove duplicates based on all fields
-        filtered_policy_file.rules = list(
-            {get_hashable_rule(r): r for r in filtered_policy_file.rules}.values()
-        )
-
-        return filtered_policy_file
+        Delegates to PolicyRepository.dedup so there is a single
+        deduplication implementation.
+        """
+        return PolicyRepository().dedup(filtered_policy_file)
 
     def filter_domain(self, filter_rule, policy_file, filtered_policy_file):
         filtered_policy_file.type_def.extend(

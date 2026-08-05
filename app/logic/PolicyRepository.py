@@ -63,24 +63,59 @@ class PolicyRepository:
         return lst_rules
 
     def dedup(self, policy: PolicyFile) -> PolicyFile:
+        """Remove exact duplicates from every PolicyFile collection.
+
+        Keys are content-based so two distinct entries that merely share a
+        name (e.g. seapp_contexts lines without a ``name=`` selector, or two
+        ``typeattribute`` lines for the same type) are both kept.
+        """
         if policy is None:
             return PolicyFile()
-        # Unique by keys
-        policy.type_def = list({item.name: item for item in policy.type_def}.values())
-        policy.attribute = list({item.name: item for item in policy.attribute}.values())
-        policy.contexts = list(
-            {item.path_name: item for item in policy.contexts}.values()
-        )
-        policy.se_apps = list({item.name: item for item in policy.se_apps}.values())
 
-        def rule_key(r: Rule):
-            return (
+        def unique(items, key):
+            return list({key(item): item for item in items}.values())
+
+        policy.type_def = unique(policy.type_def, lambda t: (t.name, tuple(t.types)))
+        policy.attribute = unique(
+            policy.attribute, lambda a: (a.name, tuple(a.attributes))
+        )
+        policy.contexts = unique(
+            policy.contexts,
+            lambda c: (
+                c.path_name,
+                c.file_type,
+                c.security_context.type if c.security_context else "",
+            ),
+        )
+        policy.se_apps = unique(
+            policy.se_apps,
+            lambda s: (s.name, s.user, s.seinfo, s.domain, s.type, s.level_from),
+        )
+        policy.rules = unique(
+            policy.rules,
+            lambda r: (
                 r.rule,
                 r.source,
                 r.target,
                 r.class_type,
                 tuple(sorted(r.permissions)),
-            )
-
-        policy.rules = list({rule_key(r): r for r in policy.rules}.values())
+            ),
+        )
+        policy.macros = unique(policy.macros, lambda m: (m.name, tuple(m.rules_string)))
+        policy.macro_calls = unique(
+            policy.macro_calls, lambda m: (m.name, tuple(m.parameters))
+        )
+        policy.permissives = unique(policy.permissives, lambda p: p.name)
+        policy.type_aliases = unique(policy.type_aliases, lambda t: (t.name, t.alias))
+        policy.type_transitions = unique(
+            policy.type_transitions,
+            lambda t: (
+                t.rule_type,
+                t.source,
+                t.target,
+                t.class_type,
+                t.default_type,
+                t.object_name,
+            ),
+        )
         return policy
