@@ -293,6 +293,14 @@ class PolicyMacroCall:
     where_is_it: str = ""
 
 
+# bool name true|false;
+@dataclass
+class PolicyBool(JSONWizard):
+    name: str = ""
+    default_value: str = ""
+    where_is_it: str = ""
+
+
 # allowxperm / auditallowxperm / dontauditxperm / neverallowxperm
 # syntax: rule source target:class operation xperm_set;
 @dataclass
@@ -354,6 +362,7 @@ class PolicyFile(JSONWizard):
     type_aliases: List[TypeAlias] = field(default_factory=list)
     type_transitions: List[TypeTransition] = field(default_factory=list)
     xperm_rules: List[XpermRule] = field(default_factory=list)
+    bools: List[PolicyBool] = field(default_factory=list)
 
 
 @dataclass

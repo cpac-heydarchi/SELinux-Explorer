@@ -1,3 +1,4 @@
+import re
 import sys
 from analyzer.AnalyzerUtility import *
 from analyzer.AbstractAnalyzer import *
@@ -37,6 +38,7 @@ class TeAnalyzer(AbstractAnalyzer):
         macro_call_found = False
         multi_line = False
         require_block_depth = 0  # tracks depth of require { … } blocks to skip
+        conditional_depth = 0  # tracks depth of if (…) { … } else { … } blocks
         for line in file_lines:
             line = clean_line(line)
             if line is None:
@@ -55,6 +57,31 @@ class TeAnalyzer(AbstractAnalyzer):
                 if require_block_depth < 0:
                     require_block_depth = 0
                 continue
+
+            # ── if (…) { … } else { … } conditional policy blocks ─────────
+            # The rules of both branches are kept for best-effort static
+            # analysis (same policy as ifdef/ifndef below); only the block
+            # structure (condition, braces, else) is stripped.
+            if not (define_macro_found or macro_call_found or multi_line):
+                is_if_opener = tokens and tokens[0] == "if" and "(" in line
+                if is_if_opener or conditional_depth > 0:
+                    conditional_depth += line.count("{") - line.count("}")
+                    if conditional_depth < 0:
+                        conditional_depth = 0
+                    if is_if_opener:
+                        line = re.sub(r"^if\s*\([^)]*\)\s*", "", line)
+                    line = line.strip()
+                    if line.startswith("}"):
+                        line = line[1:].strip()
+                    if line.startswith("else"):
+                        line = line[len("else") :].strip()
+                    if line.startswith("{"):
+                        line = line[1:].strip()
+                    while line.endswith("}") and line.count("}") > line.count("{"):
+                        line = line[:-1].strip()
+                    if not line:
+                        continue
+                    tokens = line.split()
 
             # ── existing state machine ────────────────────────────────────
             if define_macro_found:
@@ -158,6 +185,10 @@ class TeAnalyzer(AbstractAnalyzer):
                     self.policy_file.attribute.append(attribute)
             elif items[0] in ["allow", "neverallow", "auditallow", "dontaudit"]:
                 self.policy_file.rules.extend(self.extract_rule(input_string))
+            elif items[0] == "bool":
+                policy_bool = self.extract_bool(input_string)
+                if policy_bool is not None:
+                    self.policy_file.bools.append(policy_bool)
             elif items[0] == "permissive":
                 permissive = self.extract_permissive(input_string)
                 if permissive is not None:
@@ -229,6 +260,19 @@ class TeAnalyzer(AbstractAnalyzer):
                 tt.object_name = items[4].strip('"')
             tt.where_is_it = self.policy_file.where_is_it
             return tt
+        except Exception as err:
+            MyLogger.log_error(sys, err, input_string)
+            return None
+
+    # will extract bool bool_id true|false;
+    def extract_bool(self, input_string):
+        try:
+            items = input_string.replace(";", "").split()
+            policy_bool = PolicyBool()
+            policy_bool.name = items[1].strip()
+            policy_bool.default_value = items[2].strip()
+            policy_bool.where_is_it = self.policy_file.where_is_it
+            return policy_bool
         except Exception as err:
             MyLogger.log_error(sys, err, input_string)
             return None

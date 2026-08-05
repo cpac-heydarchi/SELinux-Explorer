@@ -23,6 +23,7 @@ class PolicyRepository:
             out.type_aliases.extend(pf.type_aliases)
             out.type_transitions.extend(pf.type_transitions)
             out.xperm_rules.extend(pf.xperm_rules)
+            out.bools.extend(pf.bools)
         return out
 
     def expand_macros(self, policy: PolicyFile) -> PolicyFile:
@@ -130,4 +131,5 @@ class PolicyRepository:
                 tuple(x.permissions),
             ),
         )
+        policy.bools = unique(policy.bools, lambda b: (b.name, b.default_value))
         return policy
