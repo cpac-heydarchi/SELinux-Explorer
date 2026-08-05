@@ -48,6 +48,19 @@ class FilterResult:
     _MAX_FILENAME_LEN = 180
 
     def filter(self, lst_rules, policy_file):
+        """Apply the filter rules, then render the result as diagrams.
+
+        Returns (diagram_file_path, filtered_policy_file).
+        """
+        filtered_policy_file = self.apply_filters(lst_rules, policy_file)
+        self.render(filtered_policy_file)
+        return (
+            generate_diagram_file_name(filtered_policy_file.file_name),
+            filtered_policy_file,
+        )
+
+    def apply_filters(self, lst_rules, policy_file):
+        """Pure filtering step: no files are written, nothing is drawn."""
         filtered_policy_file = PolicyFile()
         filtered_policy_file.file_name = "domain_filtered"
 
@@ -86,18 +99,12 @@ class FilterResult:
                 filtered_policy_file.file_name[: self._MAX_FILENAME_LEN - 3] + "___"
             )
 
-        filtered_policy_file = self.remove_duplicated_Items(filtered_policy_file)
+        return self.remove_duplicated_Items(filtered_policy_file)
 
-        drawer = RelationDrawer()
-        drawer.draw_uml(filtered_policy_file)
-
-        drawer_adv = AdvancedDrawer()
-        drawer_adv.draw_uml(filtered_policy_file)
-
-        return (
-            generate_diagram_file_name(filtered_policy_file.file_name),
-            filtered_policy_file,
-        )
+    def render(self, filtered_policy_file):
+        """Rendering step: write .puml files and generate diagrams."""
+        RelationDrawer().draw_uml(filtered_policy_file)
+        AdvancedDrawer().draw_uml(filtered_policy_file)
 
     def remove_duplicated_Items(self, filtered_policy_file):
         """Remove duplicated items from filtered_policy_file.

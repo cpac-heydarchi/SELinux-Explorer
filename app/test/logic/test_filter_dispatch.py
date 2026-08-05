@@ -1,30 +1,18 @@
-"""Regression tests for FilterResult.filter dispatch.
+"""Regression tests for FilterResult filtering.
 
 A filename-truncation change once moved the per-rule dispatch chain out of
 the ``for filter_rule`` loop and into the truncation ``if`` block, so
 filtering silently returned an empty result for every normal-length
-filter.  These tests run ``filter()`` end-to-end (with the drawers stubbed
-out) to make sure every filter rule in the list is actually applied.
-"""
+filter.  These tests make sure every filter rule in the list is applied.
 
-import pytest
+``apply_filters`` is the pure filtering step (no files written, nothing
+drawn); ``filter`` additionally renders diagrams, so it is tested once
+with the drawers stubbed out.
+"""
 
 import logic.FilterResult as filter_result_module
 from logic.FilterResult import FilterResult, FilterRule, FilterType
 from model.PolicyEntities import PolicyFile, Rule, TypeDef
-
-
-class _NullDrawer:
-    """Stands in for RelationDrawer/AdvancedDrawer so no files are written."""
-
-    def draw_uml(self, policy_file):
-        pass
-
-
-@pytest.fixture(autouse=True)
-def stub_drawers(monkeypatch):
-    monkeypatch.setattr(filter_result_module, "RelationDrawer", _NullDrawer)
-    monkeypatch.setattr(filter_result_module, "AdvancedDrawer", _NullDrawer)
 
 
 def make_policy_file():
@@ -54,7 +42,7 @@ def make_policy_file():
 
 def test_domain_filter_returns_matches():
     fr = FilterResult()
-    _, filtered = fr.filter(
+    filtered = fr.apply_filters(
         [FilterRule(FilterType.DOMAIN, "init", True)], make_policy_file()
     )
     assert [t.name for t in filtered.type_def] == ["init"]
@@ -64,7 +52,7 @@ def test_domain_filter_returns_matches():
 
 def test_permission_filter_returns_matches():
     fr = FilterResult()
-    _, filtered = fr.filter(
+    filtered = fr.apply_filters(
         [FilterRule(FilterType.PERMISSION, "write", True)], make_policy_file()
     )
     assert len(filtered.rules) == 1
@@ -75,7 +63,7 @@ def test_permission_filter_returns_matches():
 def test_every_rule_in_list_is_applied():
     """All filter rules must be dispatched, not just the last one."""
     fr = FilterResult()
-    _, filtered = fr.filter(
+    filtered = fr.apply_filters(
         [
             FilterRule(FilterType.DOMAIN, "init", True),
             FilterRule(FilterType.DOMAIN, "vendor_app", True),
@@ -91,8 +79,23 @@ def test_long_filename_is_truncated_and_still_filters():
     long_keyword = "init" + "x" * 300
     policy_file = make_policy_file()
     policy_file.type_def.append(TypeDef(name=long_keyword))
-    diagram_name, filtered = fr.filter(
+    filtered = fr.apply_filters(
         [FilterRule(FilterType.DOMAIN, long_keyword, True)], policy_file
     )
     assert len(filtered.file_name) <= FilterResult._MAX_FILENAME_LEN
     assert [t.name for t in filtered.type_def] == [long_keyword]
+
+
+def test_filter_applies_rules_and_renders(monkeypatch):
+    """filter() must return the filtered result and invoke the renderer."""
+    rendered = []
+    monkeypatch.setattr(
+        FilterResult, "render", lambda self, policy_file: rendered.append(policy_file)
+    )
+    fr = FilterResult()
+    diagram_name, filtered = fr.filter(
+        [FilterRule(FilterType.DOMAIN, "init", True)], make_policy_file()
+    )
+    assert rendered == [filtered]
+    assert filtered.file_name in diagram_name
+    assert [t.name for t in filtered.type_def] == ["init"]
