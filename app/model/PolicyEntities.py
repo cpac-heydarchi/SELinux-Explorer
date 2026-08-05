@@ -78,8 +78,17 @@ class RuleEnum(Enum):
         return str(self.value)
 
 
-class NotSupportedRuleEnum(Enum):
+class XpermRuleEnum(Enum):
     ALLOWXPERM = "allowxperm"
+    AUDITALLOWXPERM = "auditallowxperm"
+    DONTAUDITXPERM = "dontauditxperm"
+    NEVERALLOWXPERM = "neverallowxperm"
+
+    def __str__(self):
+        return str(self.value)
+
+
+class NotSupportedRuleEnum(Enum):
     EXPANDATTRIBUTE = "expandattribute"
     EXPANDTYPEATTRIBUTE = "expandtypeattribute"
 
@@ -284,6 +293,37 @@ class PolicyMacroCall:
     where_is_it: str = ""
 
 
+# allowxperm / auditallowxperm / dontauditxperm / neverallowxperm
+# syntax: rule source target:class operation xperm_set;
+@dataclass
+class XpermRule(JSONWizard):
+    rule: str = ""
+    source: str = ""
+    target: str = ""
+    class_type: str = ""
+    operation: str = ""  # e.g. "ioctl"
+    permissions: List[str] = field(default_factory=list)
+    where_is_it: str = ""
+
+    def to_string(self):
+        return (
+            "where_is_it: "
+            + self.where_is_it
+            + "\n\n"
+            + self.rule
+            + "\n source: "
+            + self.source
+            + "\n target: "
+            + self.target
+            + "\n class_type: "
+            + self.class_type
+            + "\n operation: "
+            + self.operation
+            + "\n\t permissions: "
+            + "\n ".join(self.permissions)
+        )
+
+
 # type_transition / type_change / type_member
 # syntax: rule_type source target:class default_type [object_name];
 @dataclass
@@ -313,6 +353,7 @@ class PolicyFile(JSONWizard):
     permissives: List[Permissive] = field(default_factory=list)
     type_aliases: List[TypeAlias] = field(default_factory=list)
     type_transitions: List[TypeTransition] = field(default_factory=list)
+    xperm_rules: List[XpermRule] = field(default_factory=list)
 
 
 @dataclass

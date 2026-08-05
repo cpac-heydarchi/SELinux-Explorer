@@ -166,6 +166,10 @@ class TeAnalyzer(AbstractAnalyzer):
                 type_alias = self.extract_type_alias(input_string)
                 if type_alias is not None:
                     self.policy_file.type_aliases.append(type_alias)
+            elif items[0] in [x.value for x in XpermRuleEnum]:
+                xperm_rule = self.extract_xperm_rule(input_string)
+                if xperm_rule is not None:
+                    self.policy_file.xperm_rules.append(xperm_rule)
             elif items[0] in ["type_transition", "type_change", "type_member"]:
                 tt = self.extract_type_transition(input_string)
                 if tt is not None:
@@ -225,6 +229,40 @@ class TeAnalyzer(AbstractAnalyzer):
                 tt.object_name = items[4].strip('"')
             tt.where_is_it = self.policy_file.where_is_it
             return tt
+        except Exception as err:
+            MyLogger.log_error(sys, err, input_string)
+            return None
+
+    def extract_xperm_rule(self, input_string):
+        """Parse extended-permission rules.
+
+        Syntax: allowxperm source target:class operation xperm_set;
+        where xperm_set is a single value or a brace group
+        (e.g. ``{ 0x8910-0x8926 }`` or a named set).
+        """
+        try:
+            s = (
+                input_string.replace(" : ", ":")
+                .replace(" :", ":")
+                .replace(": ", ":")
+                .replace(";", "")
+                .replace("{", " ")
+                .replace("}", " ")
+                .strip()
+            )
+            items = s.split()
+            colon_pos = items[2].find(":")
+            if colon_pos < 0:
+                return None
+            xperm_rule = XpermRule()
+            xperm_rule.rule = items[0]
+            xperm_rule.source = items[1]
+            xperm_rule.target = items[2][:colon_pos]
+            xperm_rule.class_type = items[2][colon_pos + 1 :]
+            xperm_rule.operation = items[3]
+            xperm_rule.permissions = items[4:]
+            xperm_rule.where_is_it = self.policy_file.where_is_it
+            return xperm_rule
         except Exception as err:
             MyLogger.log_error(sys, err, input_string)
             return None
