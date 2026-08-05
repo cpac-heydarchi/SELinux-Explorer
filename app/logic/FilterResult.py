@@ -57,12 +57,6 @@ class FilterResult:
                 + filter_rule.keyword
             )
 
-        # Truncate to stay within the OS filename-length limit
-        if len(filtered_policy_file.file_name) > self._MAX_FILENAME_LEN:
-            filtered_policy_file.file_name = (
-                filtered_policy_file.file_name[: self._MAX_FILENAME_LEN - 3] + "___"
-            )
-
             if FilterType(filter_rule.filter_type) == FilterType.DOMAIN:
                 filtered_policy_file = self.filter_domain(
                     filter_rule, policy_file, filtered_policy_file
@@ -84,6 +78,12 @@ class FilterResult:
                 filtered_policy_file = self.filter_macro_def(
                     filter_rule, policy_file, filtered_policy_file
                 )
+
+        # Truncate to stay within the OS filename-length limit
+        if len(filtered_policy_file.file_name) > self._MAX_FILENAME_LEN:
+            filtered_policy_file.file_name = (
+                filtered_policy_file.file_name[: self._MAX_FILENAME_LEN - 3] + "___"
+            )
 
         filtered_policy_file = self.remove_duplicated_Items(filtered_policy_file)
 
