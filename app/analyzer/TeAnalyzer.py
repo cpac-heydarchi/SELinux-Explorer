@@ -22,6 +22,7 @@ class TeAnalyzer(AbstractAnalyzer):
                 # print("line: ", line)
                 self.process_line(line)
 
+            self.attach_aliases_to_type_defs()
             # print("self.policy_file: ", self.policy_file)
             return self.policy_file
         except Exception as err:
@@ -220,6 +221,13 @@ class TeAnalyzer(AbstractAnalyzer):
                 MyLogger.log_error(
                     None, "Unknown input from " + self.file_path, input_string
                 )
+
+    def attach_aliases_to_type_defs(self):
+        """Populate TypeDef.aliases from the parsed typealias statements."""
+        for type_alias in self.policy_file.type_aliases:
+            for type_def in self.policy_file.type_def:
+                if type_def.name == type_alias.name:
+                    type_def.aliases.append(type_alias.alias)
 
     # will extract typealias type_id alias alias_id;
     def extract_type_alias(self, input_string):

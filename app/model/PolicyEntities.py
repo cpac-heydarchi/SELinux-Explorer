@@ -151,7 +151,7 @@ class SecurityContext(JSONWizard):
 @dataclass
 class TypeDef(JSONWizard):
     name: str = ""
-    alises: List[str] = field(default_factory=list)
+    aliases: List[str] = field(default_factory=list)
     types: List[str] = field(default_factory=list)
     where_is_it: str = ""
 
@@ -163,7 +163,7 @@ class TypeDef(JSONWizard):
             + self.name
             + ": "
             + "\n\t types: ".join(self.types)
-            + "\n\t alises: ".join(self.alises)
+            + "\n\t aliases: ".join(self.aliases)
         )
 
 
