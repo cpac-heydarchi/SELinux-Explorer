@@ -9,9 +9,9 @@
 - [ ] `range_transition` — not parsed
 - [ ] `constrain` / `mlsconstrain` — not parsed
 - [ ] `class` and `common` declarations — not parsed; foreign class names appear as unresolved strings
-- [ ] `bool` declarations and `if`/`else`/`endif` conditional policy blocks — not parsed; conditional rules are silently dropped
+- [x] `bool` declarations and `if`/`else` conditional policy blocks — parsed; bools stored in `PolicyFile.bools`, rules from both branches kept for best-effort static analysis
 - [x] M4 preprocessor conditionals (`ifdef`, `ifndef`, `else`, `endif`) — `ifdef`/`ifndef` bodies extracted and parsed; `else` branch rules included for best-effort static analysis
-- [ ] `allowxperm` — currently in `NotSupportedRuleEnum` (silently skipped); add at least model-level storage so entries are not lost
+- [x] `allowxperm` family (`allowxperm`, `auditallowxperm`, `dontauditxperm`, `neverallowxperm`) — parsed into `XpermRule`, stored in `PolicyFile.xperm_rules`
 - [x] `require { type …; }` blocks inside `.te` files — silently skipped with brace-depth tracking; no parse errors
 - [x] Negative sets in brace groups (`allow { domain1 -domain2 } …`) — negated type names (starting with `-`) are now filtered from sources and targets lists after bracket expansion
 - [ ] `genfs_contexts`, `port_contexts` — stub methods (`pass`) in `ContextsAnalyzer`; implement or remove stubs
@@ -21,16 +21,17 @@
 ### Model / Data Issues
 
 - [ ] `SecurityContext.categories` is a single `str` but MCS can express multiple categories (`c512,c768`); change to `List[str]`
-- [ ] `TypeDef.alises` is misspelled (should be `aliases`) and is never populated by `extract_definition`
-- [ ] `FileTypeEnum` has two members with rank `9` (`TE_FILE_2` and `TE_FILE_3`); clarify intent and deduplicate handling in `invoke_analyzer_class`
-- [ ] `SeAppContext` dedup (in both `PolicyRepository.dedup` and `FilterResult.remove_duplicated_Items`) keys on `.name` which defaults to `""`; all apps without a `name=` selector collapse into one entry
+- [x] `TypeDef.alises` typo fixed (now `aliases`) and populated from `typealias` statements after parsing
+- [x] `FileTypeEnum` duplicate rank resolved; `detect_lang` rewritten as explicit prefix/longest-suffix matching (no longer depends on `UNDEFINED`'s empty label)
+- [x] `SeAppContext` dedup now uses a content-based key; apps without a `name=` selector no longer collapse into one entry
 - [ ] No cross-file macro arity validation: `PolicyRepository._macro_calls_to_rules` substitutes `$1`…`$N` without checking that parameter count matches the macro definition
 
 
 ### Logic & Architecture Issues
 
-- [ ] Deduplication logic is duplicated between `FilterResult.remove_duplicated_Items` and `PolicyRepository.dedup` (and they diverge — `macros` deduped in one but not the other); consolidate into `PolicyRepository.dedup` and remove the copy in `FilterResult`
-- [ ] `AnalyzerLogic` requires three `set_*_signal` calls before `analyze_all` or `on_analyze_finished` can be used; calling without them raises `AttributeError` — add default no-op lambdas in `_init_variables`
+- [x] Deduplication consolidated into `PolicyRepository.dedup` (covers all `PolicyFile` collections); `FilterResult.remove_duplicated_Items` delegates to it
+- [x] `AnalyzerLogic` UI callbacks default to no-ops; `analyze_all` works without `set_*_signal` calls
+- [x] `FilterResult` split into pure `apply_filters` (no I/O) and `render` (diagram generation); `filter` composes both
 - [ ] No `self` keyword handling in rules: `allow domain self:file rw_file_perms;` stores `"self"` as a literal target with no special treatment in filtering or diagrams
 - [ ] No attribute expansion: attributes (`domain`, `exec_type`, etc.) map to sets of types, but there is no mechanism to resolve which concrete types an attribute covers from the parsed data
 - [ ] No incremental/cached analysis: every `analyze_all` re-parses all files from scratch even if nothing changed
@@ -83,7 +84,7 @@
 
 - [ ] Expand the test suite to cover more edge cases and improve overall code coverage
 - [ ] Add tests for `ContextsAnalyzer` with file-type flag entries (`-c`, `-d`, `-l`, etc.)
-- [ ] Add tests for `SeAppAnalyzer` (no test file exists today)
+- [x] Add tests for `SeAppAnalyzer` — `SeAppAnalyzer_test.py` exists
 - [x] Add end-to-end integration tests that run `FileAnalyzer` over the sample files in `app/test/samples/` — done (`test_sample_files_integration.py`)
 - [x] Add tests for `typealias` extraction (`extract_type_alias`) — covered by existing `TeAnalyzer_test.py`
 - [x] Add tests for multi-class rules (`allow src tgt:{cls1 cls2} perm;`) — done (`test_parsing_correctness.py`, `test_sample_files_integration.py`)
