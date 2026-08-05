@@ -34,11 +34,11 @@ class FileTypeEnum(Enum):
     VNDSERVICE_CONTEXTS = 6, "vndservice_contexts"
     PROPERTY_CONTEXTS = 7, "property_contexts"
     # OTHER_CONTEXT = 8,"contexts"
-    TE_FILE_2 = 9, "_te"
+    TE_FILE_2 = 9, "_te"  # e.g. "init_te" (suffix)
+    TE_FILE_3 = 10, "te_"  # e.g. "te_init" (prefix, checked with startswith)
     UNDEFINED = 20, ""
-    TE_FILE_3 = 9, "te_"
 
-    # GENFS_CONTEXTS = 10, "genfs_contexts"
+    # GENFS_CONTEXTS = 11, "genfs_contexts"
 
     def __str__(self):
         return str(self.value)

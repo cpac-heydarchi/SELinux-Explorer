@@ -62,17 +62,17 @@ class FileAnalyzer(AbstractAnalyzer):
         return list_of_files
 
     def detect_lang(self, file_name):
-        file_type = FileTypeEnum.UNDEFINED
-        for file_type in FileTypeEnum:
-            # if file_type.label in os.path.basename(file_name):
-            if os.path.basename(file_name).strip().endswith(file_type.label):
-                # print(os.path.basename(file_name))
-                break
-        if os.path.basename(file_name).startswith(FileTypeEnum.TE_FILE_3.value[1]):
-            # print("TE_FILE_2", os.path.basename(file_name))
-            file_type = FileTypeEnum.TE_FILE_3
-
-        return file_type
+        base_name = os.path.basename(file_name).strip()
+        if base_name.startswith(FileTypeEnum.TE_FILE_3.label):
+            return FileTypeEnum.TE_FILE_3
+        # Longest label first, so e.g. "vndservice_contexts" is not
+        # claimed by the shorter "service_contexts" suffix.
+        for file_type in sorted(
+            FileTypeEnum, key=lambda ft: len(ft.label), reverse=True
+        ):
+            if file_type.label and base_name.endswith(file_type.label):
+                return file_type
+        return FileTypeEnum.UNDEFINED
 
     def invoke_analyzer_class(self, file_type, file_path):
         if file_type in [
