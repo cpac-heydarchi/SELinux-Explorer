@@ -1,10 +1,14 @@
 from model.PolicyEntities import (
+    Permissive,
     PolicyFile,
     PolicyMacro,
     PolicyMacroCall,
     Rule,
     RuleEnum,
+    SeAppContext,
+    TypeAlias,
     TypeDef,
+    TypeTransition,
 )
 from logic.PolicyRepository import PolicyRepository
 
@@ -69,3 +73,66 @@ def test_dedup_removes_duplicates():
     out = repo.dedup(pf)
     assert len(out.type_def) == 1
     assert len(out.rules) == 1
+
+
+def test_dedup_covers_all_collections():
+    repo = PolicyRepository()
+    pf = PolicyFile()
+    macro = PolicyMacro(name="m1", rules_string=["allow a b:c d;"])
+    pf.macros.extend([macro, PolicyMacro(name="m1", rules_string=["allow a b:c d;"])])
+    call = PolicyMacroCall(name="m1", parameters=["a", "b"])
+    pf.macro_calls.extend([call, PolicyMacroCall(name="m1", parameters=["a", "b"])])
+    pf.permissives.extend([Permissive(name="p1"), Permissive(name="p1")])
+    pf.type_aliases.extend(
+        [TypeAlias(name="t", alias="u"), TypeAlias(name="t", alias="u")]
+    )
+    tt = TypeTransition(
+        rule_type="type_transition",
+        source="s",
+        target="t",
+        class_type="file",
+        default_type="d",
+    )
+    pf.type_transitions.extend(
+        [
+            tt,
+            TypeTransition(
+                rule_type="type_transition",
+                source="s",
+                target="t",
+                class_type="file",
+                default_type="d",
+            ),
+        ]
+    )
+
+    out = repo.dedup(pf)
+    assert len(out.macros) == 1
+    assert len(out.macro_calls) == 1
+    assert len(out.permissives) == 1
+    assert len(out.type_aliases) == 1
+    assert len(out.type_transitions) == 1
+
+
+def test_dedup_keeps_distinct_entries_sharing_a_name():
+    """Content-based keys: same name but different content must survive."""
+    repo = PolicyRepository()
+    pf = PolicyFile()
+    # Two seapp_contexts entries without a name= selector (name defaults "")
+    pf.se_apps.extend(
+        [
+            SeAppContext(user="system", domain="system_app"),
+            SeAppContext(user="_app", domain="untrusted_app"),
+        ]
+    )
+    # Two macro calls with the same macro name but different parameters
+    pf.macro_calls.extend(
+        [
+            PolicyMacroCall(name="m1", parameters=["a"]),
+            PolicyMacroCall(name="m1", parameters=["b"]),
+        ]
+    )
+
+    out = repo.dedup(pf)
+    assert len(out.se_apps) == 2
+    assert len(out.macro_calls) == 2

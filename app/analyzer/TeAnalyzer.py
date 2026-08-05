@@ -1,3 +1,4 @@
+import re
 import sys
 from analyzer.AnalyzerUtility import *
 from analyzer.AbstractAnalyzer import *
@@ -21,6 +22,7 @@ class TeAnalyzer(AbstractAnalyzer):
                 # print("line: ", line)
                 self.process_line(line)
 
+            self.attach_aliases_to_type_defs()
             # print("self.policy_file: ", self.policy_file)
             return self.policy_file
         except Exception as err:
@@ -36,11 +38,53 @@ class TeAnalyzer(AbstractAnalyzer):
         define_macro_found = False
         macro_call_found = False
         multi_line = False
+        require_block_depth = 0  # tracks depth of require { … } blocks to skip
+        conditional_depth = 0  # tracks depth of if (…) { … } else { … } blocks
         for line in file_lines:
             line = clean_line(line)
             if line is None:
                 continue
 
+            # ── require { … } blocks: skip entirely ──────────────────────
+            if require_block_depth > 0:
+                require_block_depth += line.count("{") - line.count("}")
+                if require_block_depth < 0:
+                    require_block_depth = 0
+                continue
+
+            tokens = line.split()
+            if tokens and tokens[0] == "require" and "{" in line:
+                require_block_depth = line.count("{") - line.count("}")
+                if require_block_depth < 0:
+                    require_block_depth = 0
+                continue
+
+            # ── if (…) { … } else { … } conditional policy blocks ─────────
+            # The rules of both branches are kept for best-effort static
+            # analysis (same policy as ifdef/ifndef below); only the block
+            # structure (condition, braces, else) is stripped.
+            if not (define_macro_found or macro_call_found or multi_line):
+                is_if_opener = tokens and tokens[0] == "if" and "(" in line
+                if is_if_opener or conditional_depth > 0:
+                    conditional_depth += line.count("{") - line.count("}")
+                    if conditional_depth < 0:
+                        conditional_depth = 0
+                    if is_if_opener:
+                        line = re.sub(r"^if\s*\([^)]*\)\s*", "", line)
+                    line = line.strip()
+                    if line.startswith("}"):
+                        line = line[1:].strip()
+                    if line.startswith("else"):
+                        line = line[len("else") :].strip()
+                    if line.startswith("{"):
+                        line = line[1:].strip()
+                    while line.endswith("}") and line.count("}") > line.count("{"):
+                        line = line[:-1].strip()
+                    if not line:
+                        continue
+                    tokens = line.split()
+
+            # ── existing state machine ────────────────────────────────────
             if define_macro_found:
                 if ")" in line and (tmp_lst_lines.count("(") + line.count("(")) == (
                     tmp_lst_lines.count(")") + line.count(")")
@@ -55,8 +99,25 @@ class TeAnalyzer(AbstractAnalyzer):
                     tmp_lst_lines.count(")") + line.count(")")
                 ):
                     macro_call_found = False
-                    lst_lines.append(tmp_lst_lines + "\n " + line)
+                    assembled = tmp_lst_lines + "\n " + line
                     tmp_lst_lines = ""
+                    # ifdef/ifndef: extract body lines so inner rules are parsed.
+                    # first_token may be "ifdef(`FEATURE'," so use startswith.
+                    first_token = assembled.split()[0] if assembled.split() else ""
+                    if first_token.startswith(("ifdef", "ifndef")):
+                        for body_line in assembled.splitlines()[1:]:
+                            body_line = body_line.strip()
+                            # skip M4 closing/separator markers like '), ', `
+                            if not body_line or body_line.startswith("'"):
+                                continue
+                            if (
+                                ";" in body_line
+                                and body_line.count("(") == body_line.count(")")
+                                and body_line.count("{") == body_line.count("}")
+                            ):
+                                lst_lines.append(body_line)
+                    else:
+                        lst_lines.append(assembled)
                 else:
                     tmp_lst_lines = tmp_lst_lines + "\n " + line
             elif multi_line:
@@ -86,6 +147,25 @@ class TeAnalyzer(AbstractAnalyzer):
                     multi_line = True
                     tmp_lst_lines = line
 
+        # If an unclosed define/macro-call block was still open at end-of-file,
+        # attempt to salvage any self-contained statements embedded inside it.
+        if tmp_lst_lines:
+            MyLogger.log_error(
+                None,
+                "Unclosed block in " + getattr(self, "file_path", "?"),
+                tmp_lst_lines[:120],
+            )
+            for salvage_line in tmp_lst_lines.splitlines():
+                salvage_line = salvage_line.strip()
+                if not salvage_line or "define" in salvage_line:
+                    continue
+                if (
+                    ";" in salvage_line
+                    and salvage_line.count("(") == salvage_line.count(")")
+                    and salvage_line.count("{") == salvage_line.count("}")
+                ):
+                    lst_lines.append(salvage_line)
+
         # print("lst_lines: ", "\n-----------------\n".join(lst_lines))
         return lst_lines
 
@@ -106,6 +186,10 @@ class TeAnalyzer(AbstractAnalyzer):
                     self.policy_file.attribute.append(attribute)
             elif items[0] in ["allow", "neverallow", "auditallow", "dontaudit"]:
                 self.policy_file.rules.extend(self.extract_rule(input_string))
+            elif items[0] == "bool":
+                policy_bool = self.extract_bool(input_string)
+                if policy_bool is not None:
+                    self.policy_file.bools.append(policy_bool)
             elif items[0] == "permissive":
                 permissive = self.extract_permissive(input_string)
                 if permissive is not None:
@@ -114,6 +198,14 @@ class TeAnalyzer(AbstractAnalyzer):
                 type_alias = self.extract_type_alias(input_string)
                 if type_alias is not None:
                     self.policy_file.type_aliases.append(type_alias)
+            elif items[0] in [x.value for x in XpermRuleEnum]:
+                xperm_rule = self.extract_xperm_rule(input_string)
+                if xperm_rule is not None:
+                    self.policy_file.xperm_rules.append(xperm_rule)
+            elif items[0] in ["type_transition", "type_change", "type_member"]:
+                tt = self.extract_type_transition(input_string)
+                if tt is not None:
+                    self.policy_file.type_transitions.append(tt)
             elif "define" in input_string:
                 macro = self.extract_macro(input_string)
                 if macro is not None:
@@ -130,6 +222,13 @@ class TeAnalyzer(AbstractAnalyzer):
                     None, "Unknown input from " + self.file_path, input_string
                 )
 
+    def attach_aliases_to_type_defs(self):
+        """Populate TypeDef.aliases from the parsed typealias statements."""
+        for type_alias in self.policy_file.type_aliases:
+            for type_def in self.policy_file.type_def:
+                if type_def.name == type_alias.name:
+                    type_def.aliases.append(type_alias.alias)
+
     # will extract typealias type_id alias alias_id;
     def extract_type_alias(self, input_string):
         try:
@@ -138,6 +237,84 @@ class TeAnalyzer(AbstractAnalyzer):
             type_alias.name = items[1].strip()
             type_alias.alias = items[3].strip()
             return type_alias
+        except Exception as err:
+            MyLogger.log_error(sys, err, input_string)
+            return None
+
+    def extract_type_transition(self, input_string):
+        """Parse type_transition / type_change / type_member rules.
+
+        Syntax: rule_type source target:class default_type ["object_name"];
+        """
+        try:
+            s = (
+                input_string.replace(" : ", ":")
+                .replace(" :", ":")
+                .replace(": ", ":")
+                .replace(";", "")
+                .strip()
+            )
+            items = s.split()
+            tt = TypeTransition()
+            tt.rule_type = items[0]
+            tt.source = items[1]
+            colon_pos = items[2].find(":")
+            if colon_pos < 0:
+                return None
+            tt.target = items[2][:colon_pos]
+            tt.class_type = items[2][colon_pos + 1 :]
+            tt.default_type = items[3]
+            if len(items) > 4:
+                tt.object_name = items[4].strip('"')
+            tt.where_is_it = self.policy_file.where_is_it
+            return tt
+        except Exception as err:
+            MyLogger.log_error(sys, err, input_string)
+            return None
+
+    # will extract bool bool_id true|false;
+    def extract_bool(self, input_string):
+        try:
+            items = input_string.replace(";", "").split()
+            policy_bool = PolicyBool()
+            policy_bool.name = items[1].strip()
+            policy_bool.default_value = items[2].strip()
+            policy_bool.where_is_it = self.policy_file.where_is_it
+            return policy_bool
+        except Exception as err:
+            MyLogger.log_error(sys, err, input_string)
+            return None
+
+    def extract_xperm_rule(self, input_string):
+        """Parse extended-permission rules.
+
+        Syntax: allowxperm source target:class operation xperm_set;
+        where xperm_set is a single value or a brace group
+        (e.g. ``{ 0x8910-0x8926 }`` or a named set).
+        """
+        try:
+            s = (
+                input_string.replace(" : ", ":")
+                .replace(" :", ":")
+                .replace(": ", ":")
+                .replace(";", "")
+                .replace("{", " ")
+                .replace("}", " ")
+                .strip()
+            )
+            items = s.split()
+            colon_pos = items[2].find(":")
+            if colon_pos < 0:
+                return None
+            xperm_rule = XpermRule()
+            xperm_rule.rule = items[0]
+            xperm_rule.source = items[1]
+            xperm_rule.target = items[2][:colon_pos]
+            xperm_rule.class_type = items[2][colon_pos + 1 :]
+            xperm_rule.operation = items[3]
+            xperm_rule.permissions = items[4:]
+            xperm_rule.where_is_it = self.policy_file.where_is_it
+            return xperm_rule
         except Exception as err:
             MyLogger.log_error(sys, err, input_string)
             return None
@@ -257,29 +434,48 @@ class TeAnalyzer(AbstractAnalyzer):
                         else lst_bracket_items.pop(0).strip().split()
                     )
 
-                    sec_context = (
-                        items[2]
-                        if "###" not in items[2]
-                        else (lst_bracket_items.pop(0) + ":" + items[2].split(":")[1])
+                    # Split target:class – each side may be a "###" placeholder
+                    # for a brace group, supporting multi-target AND multi-class rules.
+                    colon_pos = items[2].find(":")
+                    if colon_pos < 0:
+                        break  # malformed rule, no target:class separator
+                    target_token = items[2][:colon_pos]
+                    class_token = items[2][colon_pos + 1 :]
+
+                    targets = (
+                        [target_token]
+                        if "###" not in target_token
+                        else lst_bracket_items.pop(0).strip().split()
+                    )
+
+                    # Filter negated types (e.g. "-domain" from { domain -domain2 })
+                    sources = [s for s in sources if not s.startswith("-")]
+                    targets = [t for t in targets if not t.startswith("-")]
+                    if not sources or not targets:
+                        break
+
+                    classes = (
+                        [class_token]
+                        if "###" not in class_token
+                        else lst_bracket_items.pop(0).strip().split()
                     )
 
                     permissions = (
                         [items[3]]
-                        if "###" not in items[3] != "###"
+                        if "###" not in items[3]
                         else lst_bracket_items.pop(0).strip().split()
                     )
                     for source in sources:
-                        dst_items = sec_context.split(":")
-                        targets = dst_items[0].split()
                         for target in targets:
-                            rule = Rule()
-                            rule.where_is_it = self.policy_file.where_is_it
-                            rule.rule = rule_enum
-                            rule.source = source
-                            rule.target = target
-                            rule.class_type = dst_items[1]
-                            rule.permissions = permissions
-                            lst_rules.append(rule)
+                            for cls in classes:
+                                rule = Rule()
+                                rule.where_is_it = self.policy_file.where_is_it
+                                rule.rule = rule_enum.value
+                                rule.source = source
+                                rule.target = target
+                                rule.class_type = cls
+                                rule.permissions = permissions
+                                lst_rules.append(rule)
 
         except Exception as err:
             MyLogger.log_error(sys, err, input_string)

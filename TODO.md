@@ -1,5 +1,43 @@
 ## TODO List
 
+
+### Missing SELinux Syntax
+
+- [x] `type_transition src tgt:class new_type [obj_name];` — parsed; stored in `PolicyFile.type_transitions` (`TypeTransition` model); `type_change` and `type_member` handled by the same code path
+- [x] `type_change` and `type_member` rules — parsed (see `type_transition` entry above)
+- [ ] `role` declarations, `role_allow`, `role_transition` — not parsed
+- [ ] `range_transition` — not parsed
+- [ ] `constrain` / `mlsconstrain` — not parsed
+- [ ] `class` and `common` declarations — not parsed; foreign class names appear as unresolved strings
+- [x] `bool` declarations and `if`/`else` conditional policy blocks — parsed; bools stored in `PolicyFile.bools`, rules from both branches kept for best-effort static analysis
+- [x] M4 preprocessor conditionals (`ifdef`, `ifndef`, `else`, `endif`) — `ifdef`/`ifndef` bodies extracted and parsed; `else` branch rules included for best-effort static analysis
+- [x] `allowxperm` family (`allowxperm`, `auditallowxperm`, `dontauditxperm`, `neverallowxperm`) — parsed into `XpermRule`, stored in `PolicyFile.xperm_rules`
+- [x] `require { type …; }` blocks inside `.te` files — silently skipped with brace-depth tracking; no parse errors
+- [x] Negative sets in brace groups (`allow { domain1 -domain2 } …`) — negated type names (starting with `-`) are now filtered from sources and targets lists after bracket expansion
+- [ ] `genfs_contexts`, `port_contexts` — stub methods (`pass`) in `ContextsAnalyzer`; implement or remove stubs
+- [ ] CIL (`.cil`) files used in Android 10+ — no parser or `FileTypeEnum` entry
+
+
+### Model / Data Issues
+
+- [ ] `SecurityContext.categories` is a single `str` but MCS can express multiple categories (`c512,c768`); change to `List[str]`
+- [x] `TypeDef.alises` typo fixed (now `aliases`) and populated from `typealias` statements after parsing
+- [x] `FileTypeEnum` duplicate rank resolved; `detect_lang` rewritten as explicit prefix/longest-suffix matching (no longer depends on `UNDEFINED`'s empty label)
+- [x] `SeAppContext` dedup now uses a content-based key; apps without a `name=` selector no longer collapse into one entry
+- [ ] No cross-file macro arity validation: `PolicyRepository._macro_calls_to_rules` substitutes `$1`…`$N` without checking that parameter count matches the macro definition
+
+
+### Logic & Architecture Issues
+
+- [x] Deduplication consolidated into `PolicyRepository.dedup` (covers all `PolicyFile` collections); `FilterResult.remove_duplicated_Items` delegates to it
+- [x] `AnalyzerLogic` UI callbacks default to no-ops; `analyze_all` works without `set_*_signal` calls
+- [x] `FilterResult` split into pure `apply_filters` (no I/O) and `render` (diagram generation); `filter` composes both
+- [ ] No `self` keyword handling in rules: `allow domain self:file rw_file_perms;` stores `"self"` as a literal target with no special treatment in filtering or diagrams
+- [ ] No attribute expansion: attributes (`domain`, `exec_type`, etc.) map to sets of types, but there is no mechanism to resolve which concrete types an attribute covers from the parsed data
+- [ ] No incremental/cached analysis: every `analyze_all` re-parses all files from scratch even if nothing changed
+- [ ] No cross-file `include` tracking: macros defined in file A, called in file B, are only matched after `PolicyRepository.merge`; the source file of an expanded rule is lost (`where_is_it` is not propagated through macro expansion)
+
+
 ### Analyzer
 
 - [ ] Enable multi-threading
@@ -33,15 +71,33 @@
 - [ ] Suggest for the right place to add the new rules
 - [ ] Implement a Wizard if it has any advantages
 
+
+
 ### Integration and Performance
 
 - [ ] Optimize performance by implementing caching and/or parallel processing
 - [ ] Develop a plugin system to enable easy integration with other tools or platforms
 
+
+
+### Testing
+
+- [ ] Expand the test suite to cover more edge cases and improve overall code coverage
+- [ ] Add tests for `ContextsAnalyzer` with file-type flag entries (`-c`, `-d`, `-l`, etc.)
+- [x] Add tests for `SeAppAnalyzer` — `SeAppAnalyzer_test.py` exists
+- [x] Add end-to-end integration tests that run `FileAnalyzer` over the sample files in `app/test/samples/` — done (`test_sample_files_integration.py`)
+- [x] Add tests for `typealias` extraction (`extract_type_alias`) — covered by existing `TeAnalyzer_test.py`
+- [x] Add tests for multi-class rules (`allow src tgt:{cls1 cls2} perm;`) — done (`test_parsing_correctness.py`, `test_sample_files_integration.py`)
+- [x] Add tests for negated sets in brace groups — done (`test_missing_syntax.py`)
+- [x] Add tests for `type_transition` once parsing is implemented — done (`test_missing_syntax.py`)
+
+
+
 ### Documentation and Contribution
 
 - [ ] Create comprehensive documentation and tutorials for users and contributors
-- [ ] Expand the test suite to cover more edge cases and improve overall code coverage
+
+
 
 ### Miscellaneous
 

@@ -4,6 +4,7 @@ from drawer.AdvanceDrawer import *
 from dataclasses import dataclass
 from dataclass_wizard import JSONWizard
 from drawer.DrawerHelper import *
+from logic.PolicyRepository import PolicyRepository
 
 
 class FilterType(Enum):
@@ -41,7 +42,25 @@ class FilterRule(JSONWizard):
 
 
 class FilterResult:
+    # Maximum length for the base filename (without directory or extension).
+    # Linux allows 255 bytes per component; we use 180 to leave headroom for
+    # the "out/seq_" prefix, the ".puml" / ".png" suffix, and multibyte chars.
+    _MAX_FILENAME_LEN = 180
+
     def filter(self, lst_rules, policy_file):
+        """Apply the filter rules, then render the result as diagrams.
+
+        Returns (diagram_file_path, filtered_policy_file).
+        """
+        filtered_policy_file = self.apply_filters(lst_rules, policy_file)
+        self.render(filtered_policy_file)
+        return (
+            generate_diagram_file_name(filtered_policy_file.file_name),
+            filtered_policy_file,
+        )
+
+    def apply_filters(self, lst_rules, policy_file):
+        """Pure filtering step: no files are written, nothing is drawn."""
         filtered_policy_file = PolicyFile()
         filtered_policy_file.file_name = "domain_filtered"
 
@@ -74,51 +93,26 @@ class FilterResult:
                     filter_rule, policy_file, filtered_policy_file
                 )
 
-        filtered_policy_file = self.remove_duplicated_Items(filtered_policy_file)
-
-        drawer = RelationDrawer()
-        drawer.draw_uml(filtered_policy_file)
-
-        drawer_adv = AdvancedDrawer()
-        drawer_adv.draw_uml(filtered_policy_file)
-
-        return (
-            generate_diagram_file_name(filtered_policy_file.file_name),
-            filtered_policy_file,
-        )
-
-    def remove_duplicated_Items(self, filtered_policy_file):
-        """Remove duplicated items from type_def,
-        contexts,se_apps, rules, macros of
-        filtered_policy_file"""
-        # print(filtered_policy_file.type_def)
-        filtered_policy_file.type_def = list(
-            {item.name: item for item in filtered_policy_file.type_def}.values()
-        )
-        filtered_policy_file.contexts = list(
-            {item.path_name: item for item in filtered_policy_file.contexts}.values()
-        )
-        filtered_policy_file.se_apps = list(
-            {item.name: item for item in filtered_policy_file.se_apps}.values()
-        )
-
-        # Define a lambda function to extract a hashable representation of each
-        # Rule object
-        def get_hashable_rule(r):
-            return (
-                r.rule,
-                r.source,
-                r.target,
-                r.class_type,
-                tuple(sorted(r.permissions)),
+        # Truncate to stay within the OS filename-length limit
+        if len(filtered_policy_file.file_name) > self._MAX_FILENAME_LEN:
+            filtered_policy_file.file_name = (
+                filtered_policy_file.file_name[: self._MAX_FILENAME_LEN - 3] + "___"
             )
 
-        # Remove duplicates based on all fields
-        filtered_policy_file.rules = list(
-            {get_hashable_rule(r): r for r in filtered_policy_file.rules}.values()
-        )
+        return self.remove_duplicated_Items(filtered_policy_file)
 
-        return filtered_policy_file
+    def render(self, filtered_policy_file):
+        """Rendering step: write .puml files and generate diagrams."""
+        RelationDrawer().draw_uml(filtered_policy_file)
+        AdvancedDrawer().draw_uml(filtered_policy_file)
+
+    def remove_duplicated_Items(self, filtered_policy_file):
+        """Remove duplicated items from filtered_policy_file.
+
+        Delegates to PolicyRepository.dedup so there is a single
+        deduplication implementation.
+        """
+        return PolicyRepository().dedup(filtered_policy_file)
 
     def filter_domain(self, filter_rule, policy_file, filtered_policy_file):
         filtered_policy_file.type_def.extend(
@@ -158,7 +152,9 @@ class FilterResult:
         for rule in policy_file.rules:
             if filter_rule.keyword in rule.permissions:
                 # print(rule)
-                temp_rule = rule
+                import copy
+
+                temp_rule = copy.copy(rule)
                 temp_rule.permissions = [filter_rule.keyword]
                 filtered_policy_file.rules.append(temp_rule)
                 filtered_policy_file.type_def.extend(

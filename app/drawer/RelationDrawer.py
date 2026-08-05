@@ -76,14 +76,14 @@ class RelationDrawer(AbstractDrawer):
     def draw_rule(self, rules: List[Rule]):
         rule_list = []
         for rule in rules:
-            if rule.rule == RuleEnum.NEVER_ALLOW:
+            if rule.rule == RuleEnum.NEVER_ALLOW.value:
                 rule_list.append(
                     ""
                     + self.correct_name(rule.source)
                     + ' -----[#red]>x "'
                     + rule.target
                     + '" : '
-                    + rule.rule.value
+                    + rule.rule
                     + " ("
                     + ", ".join(rule.permissions)
                     + ")"
@@ -95,7 +95,7 @@ class RelationDrawer(AbstractDrawer):
                     + ' -----[#green]> "'
                     + rule.target
                     + '" : '
-                    + rule.rule.value
+                    + rule.rule
                     + " ("
                     + ", ".join(rule.permissions)
                     + ")"

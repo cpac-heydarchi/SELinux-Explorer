@@ -34,11 +34,11 @@ class FileTypeEnum(Enum):
     VNDSERVICE_CONTEXTS = 6, "vndservice_contexts"
     PROPERTY_CONTEXTS = 7, "property_contexts"
     # OTHER_CONTEXT = 8,"contexts"
-    TE_FILE_2 = 9, "_te"
+    TE_FILE_2 = 9, "_te"  # e.g. "init_te" (suffix)
+    TE_FILE_3 = 10, "te_"  # e.g. "te_init" (prefix, checked with startswith)
     UNDEFINED = 20, ""
-    TE_FILE_3 = 9, "te_"
 
-    # GENFS_CONTEXTS = 10, "genfs_contexts"
+    # GENFS_CONTEXTS = 11, "genfs_contexts"
 
     def __str__(self):
         return str(self.value)
@@ -54,6 +54,7 @@ class Permissive(JSONWizard):
     where_is_it: str = ""
 
 
+@dataclass
 class TypeAlias(JSONWizard):
     name: str = ""
     alias: str = ""
@@ -77,8 +78,17 @@ class RuleEnum(Enum):
         return str(self.value)
 
 
-class NotSupportedRuleEnum(Enum):
+class XpermRuleEnum(Enum):
     ALLOWXPERM = "allowxperm"
+    AUDITALLOWXPERM = "auditallowxperm"
+    DONTAUDITXPERM = "dontauditxperm"
+    NEVERALLOWXPERM = "neverallowxperm"
+
+    def __str__(self):
+        return str(self.value)
+
+
+class NotSupportedRuleEnum(Enum):
     EXPANDATTRIBUTE = "expandattribute"
     EXPANDTYPEATTRIBUTE = "expandtypeattribute"
 
@@ -141,7 +151,7 @@ class SecurityContext(JSONWizard):
 @dataclass
 class TypeDef(JSONWizard):
     name: str = ""
-    alises: List[str] = field(default_factory=list)
+    aliases: List[str] = field(default_factory=list)
     types: List[str] = field(default_factory=list)
     where_is_it: str = ""
 
@@ -153,7 +163,7 @@ class TypeDef(JSONWizard):
             + self.name
             + ": "
             + "\n\t types: ".join(self.types)
-            + "\n\t alises: ".join(self.alises)
+            + "\n\t aliases: ".join(self.aliases)
         )
 
 
@@ -188,6 +198,7 @@ class SeAppContext(JSONWizard):
     domain: str = ""
     type: str = ""
     level_from: str = ""
+    level: str = ""
     type_def: TypeDef = field(default_factory=TypeDef)
     attribute: Attribute = field(default_factory=Attribute)
     is_permissive: bool = False
@@ -282,11 +293,64 @@ class PolicyMacroCall:
     where_is_it: str = ""
 
 
+# bool name true|false;
+@dataclass
+class PolicyBool(JSONWizard):
+    name: str = ""
+    default_value: str = ""
+    where_is_it: str = ""
+
+
+# allowxperm / auditallowxperm / dontauditxperm / neverallowxperm
+# syntax: rule source target:class operation xperm_set;
+@dataclass
+class XpermRule(JSONWizard):
+    rule: str = ""
+    source: str = ""
+    target: str = ""
+    class_type: str = ""
+    operation: str = ""  # e.g. "ioctl"
+    permissions: List[str] = field(default_factory=list)
+    where_is_it: str = ""
+
+    def to_string(self):
+        return (
+            "where_is_it: "
+            + self.where_is_it
+            + "\n\n"
+            + self.rule
+            + "\n source: "
+            + self.source
+            + "\n target: "
+            + self.target
+            + "\n class_type: "
+            + self.class_type
+            + "\n operation: "
+            + self.operation
+            + "\n\t permissions: "
+            + "\n ".join(self.permissions)
+        )
+
+
+# type_transition / type_change / type_member
+# syntax: rule_type source target:class default_type [object_name];
+@dataclass
+class TypeTransition(JSONWizard):
+    rule_type: str = ""  # "type_transition", "type_change", or "type_member"
+    source: str = ""
+    target: str = ""
+    class_type: str = ""
+    default_type: str = ""
+    object_name: str = ""  # optional; only valid for type_transition
+    where_is_it: str = ""
+
+
 @dataclass
 class PolicyFile(JSONWizard):
     where_is_it: str = ""
     description: str = ""
     file_type: FileTypeEnum = FileTypeEnum.UNDEFINED
+    file_name: str = ""
     type_def: List[TypeDef] = field(default_factory=list)
     attribute: List[Attribute] = field(default_factory=list)
     contexts: List[Context] = field(default_factory=list)
@@ -296,6 +360,9 @@ class PolicyFile(JSONWizard):
     macro_calls: List[PolicyMacroCall] = field(default_factory=list)
     permissives: List[Permissive] = field(default_factory=list)
     type_aliases: List[TypeAlias] = field(default_factory=list)
+    type_transitions: List[TypeTransition] = field(default_factory=list)
+    xperm_rules: List[XpermRule] = field(default_factory=list)
+    bools: List[PolicyBool] = field(default_factory=list)
 
 
 @dataclass

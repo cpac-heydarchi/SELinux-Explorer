@@ -23,6 +23,11 @@ class AnalyzerLogic:
         self.collected_policy_files = []
         self.drawer = RelationDrawer()
         self.repository = PolicyRepository()
+        # UI callbacks default to no-ops so the logic layer is usable
+        # (and testable) without a UI wired up via the set_*_signal methods.
+        self.update_generated_diagram_list = lambda diagrams: None
+        self.update_analyzer_output_data = lambda policy_file: None
+        self.update_statusbar = lambda message: None
 
     def init_analyzer(self):
         self.analyzer = FileAnalyzer()

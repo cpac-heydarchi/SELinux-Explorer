@@ -1,1 +1,3 @@
 user=_app seinfo=platform name=com.aospinsight.dummyaidlapp domain=dummyapp_service type=app_data_file levelFrom=user  
+# Entry with multiple consecutive spaces between fields – exercises split() whitespace fix
+user=_app  seinfo=platform  name=com.example.dummy  domain=dummy_client  type=app_data_file  levelFrom=user

@@ -159,7 +159,7 @@ class AdvancedDrawer(AbstractDrawer):
         rule_list = []
         for rule in rules:
             for permission in rule.permissions:
-                if rule.rule == RuleEnum.NEVER_ALLOW:
+                if rule.rule == RuleEnum.NEVER_ALLOW.value:
                     rule_list.append(
                         ""
                         + self.correct_name(rule.source)
@@ -287,7 +287,7 @@ class AdvancedDrawer(AbstractDrawer):
 
     def add_type_info_to_drawingpackage(self, type_def, drawing_package):
         drawing_package.type_defs.extend(type_def.types)
-        drawing_package.aliases.extend(type_def.alises)
+        drawing_package.aliases.extend(type_def.aliases)
         return drawing_package
 
     def convert_attributes_to_drawingpackage(

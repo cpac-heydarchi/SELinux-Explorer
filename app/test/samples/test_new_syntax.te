@@ -1,0 +1,39 @@
+# test_new_syntax.te
+# Exercises SELinux syntax that was previously unsupported or silently dropped.
+
+type dummy_new, domain;
+type dummy_new_exec, exec_type, file_type;
+
+# ── type_transition / type_change / type_member ──────────────────────────
+# Basic process domain transition
+type_transition dummy dummy_new_exec:process dummy_new;
+
+# type_transition with optional quoted object name (filename)
+type_transition dummy tmp_t:file dummy_tmp_t "dummy.pid";
+
+# type_change rule
+type_change dummy dummy_new_exec:file dummy_rw_t;
+
+# type_member rule
+type_member dummy dummy_new_exec:file dummy_member_t;
+
+# ── negated type sets ────────────────────────────────────────────────────
+# Neverallow: all domains EXCEPT dummy may not execute dummy_new_exec
+neverallow { domain -dummy } dummy_new_exec:file execute;
+
+# Allow with negated target set
+allow dummy { domain -dummy_new }:binder call;
+
+# ── require block (must be silently skipped) ─────────────────────────────
+require {
+    type hal_dummy_client;
+    class binder { call transfer };
+}
+
+# Regular rule after the require block — must still be parsed
+allow dummy_new servicemanager:binder { call transfer };
+
+# ── M4 ifdef block (body rules must be extracted and parsed) ─────────────
+ifdef(`DUMMY_FEATURE', `
+allow dummy_new dummy_new_exec:file { read execute };
+')

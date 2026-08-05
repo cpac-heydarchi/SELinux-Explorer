@@ -1,2 +1,7 @@
 # HAL dummy_service
 /vendor/bin/hw/dummy-service u:object_r:dummy_exec:s0
+
+# Additional context entries
+/data/misc/dummy          u:object_r:dummy_data_file:s0
+/vendor/lib/hw/dummy\.so  u:object_r:vendor_hal_file:s0
+/dev/dummy                u:object_r:dummy_device:s0

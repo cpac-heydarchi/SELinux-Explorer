@@ -26,3 +26,12 @@ allow dummy servicemanager:binder { call transfer };
 init_hal(dummy)
 
 neverallow * { system_file_type vendor_file_type rootfs }:system module_load;
+
+# Multi-class file-access rule – exercises {class1 class2} parsing fix
+allow dummy dummy_exec:{ file lnk_file } { read getattr open execute };
+
+# Multi-class with three classes and a single permission
+allow dummy dummy_exec:{ file lnk_file chr_file } getattr;
+
+# neverallow with multi-class – must not produce class_type "###"
+neverallow dummy dummy_exec:{ file dir } write;
